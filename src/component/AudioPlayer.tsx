@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from "react";
-import { Box, CircularProgress, IconButton, LinearProgress } from "@mui/material";
+import { autocompleteClasses, Box, CircularProgress, IconButton, LinearProgress } from "@mui/material";
 import { PlayArrow, Pause } from "@mui/icons-material";
 
 type Props = {
@@ -12,7 +12,8 @@ type Props = {
 };
 
 const AudioPlayer = ({ src, playing, onClick, onEnded, width = 80, ref }: Props) => {
-  const audioRef = ref || useRef<HTMLAudioElement>(null);
+  const _audioRef = useRef<HTMLAudioElement>(null);
+  const audioRef = ref || _audioRef;
   const progressBarRef = useRef<HTMLElement>(null);
   const playingRef = useRef(false);
   const [currentTime, setCurrentTime] = useState(0);
