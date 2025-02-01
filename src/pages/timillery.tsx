@@ -34,8 +34,12 @@ export default function Timillery() {
 
   useEffect(() => {
     const param = searchParams.get("id");
-    if (!loading) {
+    if (param && !loading) {
       setFocused(Number(param));
+      const element = document.getElementById(param);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth" });
+      }
     }
   }, [loading]);
 
@@ -132,7 +136,7 @@ const TimilleryPlayer = ({
   };
 
   return (
-    <Grid container spacing={1} sx={{ px: 4, pb: 2, bgcolor: focused ? "#f0fffb" : "#fff" }}>
+    <Grid container id={String(music.number)} spacing={1} sx={{ px: 4, pb: 2, bgcolor: focused ? "#f0fffb" : "#fff" }}>
       <Grid size={12}>
         <HoverPopper text={music.titlePronounce} placement="bottom-start">
           <Typography variant="h6">
