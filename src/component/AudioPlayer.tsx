@@ -7,15 +7,16 @@ type Props = {
   playing: boolean;
   onClick: () => void;
   onEnded: () => void;
+  width?: number;
+  ref?: React.RefObject<HTMLAudioElement | null>;
 };
 
-const AudioPlayer = ({ src, playing, onClick, onEnded }: Props) => {
-  const audioRef = useRef<HTMLAudioElement>(null);
+const AudioPlayer = ({ src, playing, onClick, onEnded, width = 80, ref }: Props) => {
+  const audioRef = ref || useRef<HTMLAudioElement>(null);
   const progressBarRef = useRef<HTMLElement>(null);
   const playingRef = useRef(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [loading, setLoading] = useState(false);
-  const progressWidth = 80;
 
   const handleEnded = () => {
     onClick();
@@ -29,7 +30,7 @@ const AudioPlayer = ({ src, playing, onClick, onEnded }: Props) => {
     const clickedX = e.clientX;
     const elementX = progressBarRef.current?.getBoundingClientRect().left || 0;
     const x = clickedX - elementX;
-    const time = (audioRef.current?.duration || 0) * x / progressWidth;
+    const time = (audioRef.current?.duration || 0) * x / width;
     setCurrentTime(time);
     if (audioRef.current) {
       audioRef.current.currentTime = time;
@@ -82,7 +83,7 @@ const AudioPlayer = ({ src, playing, onClick, onEnded }: Props) => {
           <LinearProgress
             variant="determinate"
             value={100 * currentTime / (audioRef.current?.duration || 1)}
-            sx={{ width: progressWidth, height: 8, mt: 2 }}
+            sx={{ width: width, height: 8, mt: 2 }}
             onClick={handleClickProgress}
           />
         </Box>

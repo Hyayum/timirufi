@@ -148,7 +148,7 @@ export default function Home() {
     <>
       <Grid container spacing={3} sx={{ m: 5, minWidth: 1500 }}>
         <Grid size={12}>
-          <Typography variant="h4" sx={{ mb: 2 }}>
+          <Typography variant="h4" sx={{ mb: 2, textAlign: "center" }}>
             #てぃみ式 コードエディタ
           </Typography>
           <Typography variant="subtitle2">

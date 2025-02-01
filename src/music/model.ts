@@ -23,24 +23,6 @@ export type MusicListData = {
     timillery: boolean;
   };
   lyrics: string;
-};
-
-export type GelleryData = {
-  number: number;
-  origin: string[];
-  title: string;
-  url: {
-    niconico: string;
-    commons: string;
-    youtube: string;
-    offvocal: string;
-  };
-  bpm: string;
-  length: string;
-  show: {
-    mq: boolean;
-    timillery: boolean;
-  };
   description: {
     mq: string;
     timillery: string;

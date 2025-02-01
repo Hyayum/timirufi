@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Avatar,
@@ -18,9 +18,11 @@ import { YouTube, Google, X } from "@mui/icons-material";
 import { MaterialReactTable, useMaterialReactTable, type MRT_ColumnDef } from "material-react-table";
 import OutboundLink from "@/component/OutboundLink";
 import AudioPlayer from "@/component/AudioPlayer";
+import HoverPopper from "@/component/HoverPopper";
 import { Niconico } from "@/component/icons";
-import { SOUND_URL, GUIDELINE_URL, ICON_URL } from "@/config/config";
+import { GUIDELINE_URL, ICON_URL } from "@/config/config";
 import { MusicListData } from "@/music/model";
+import { getSoundUrl } from "@/music/utils";
 import { useMusicList } from "@/hook/useMusicList";
 
 const getBgColor = (tag: string[]) => {
@@ -35,24 +37,28 @@ const getBgColor = (tag: string[]) => {
 
 export default function Home() {
   const { musicList, loading } = useMusicList();
-  const flags: { [k: number]: boolean } = {};
-  for (const music of musicList) {
-    if (music.show.trial) {
-      flags[music.number] = false;
-    }
-  }
+  const flags = musicList.reduce((acc, music) => (
+    music.show.trial ? { ...acc, [music.number]: false } : acc
+  ), {} as { [k: number]: boolean });
   const searchParams = useSearchParams();
   const [playFlags, setPlayFlags] = useState(flags);
   const [continuous, setContinuous] = useState(false);
-  const [showLyrics, setShowLyrics] = useState(Number(searchParams.get("lyrics")) || -1);
+  const [showLyrics, setShowLyrics] = useState(-1);
+  const lyrics = musicList.find((m) => m.number == showLyrics)?.lyrics || "";
+
+  useEffect(() => {
+    const param = searchParams.get("lyrics");
+    if (param && !loading) {
+      setShowLyrics(Number(param));
+    }
+  }, [loading]);
 
   const handleChangeFlag = (n: number) => {
     const flag = !playFlags[n];
     if (flag) {
-      const flags: { [k: number]: boolean } = {};
-      for (const { number } of musicList) {
-        flags[number] = n == number ? true : false;
-      }
+      const flags = musicList.reduce((acc, music) => (
+        music.show.trial ? { ...acc, [music.number]: music.number == n } : acc
+      ), {} as { [k: number]: boolean });;
       setPlayFlags(flags);
     } else {
       playFlags[n] = flag;
@@ -105,8 +111,7 @@ export default function Home() {
       header: "試聴",
       Cell: ({ cell }) => {
         const { number, show } = cell.row.original;
-        const filename = number.toString().padStart(3, "0").replace(".", "_");
-        const url = `${SOUND_URL}/trial/${filename}.mp3`;
+        const url = getSoundUrl(number, "trial")
         return (
           <>
             {show.trial ? (
@@ -128,7 +133,9 @@ export default function Home() {
       Cell: ({ cell }) => {
         const { title, titlePronounce } = cell.row.original;
         return (
-          <TitlePopper title={title} pronounce={titlePronounce} />
+          <HoverPopper text={titlePronounce}>
+            {title}
+          </HoverPopper>
         );
       },
       minSize: 130,
@@ -235,6 +242,7 @@ export default function Home() {
       style: {
         backgroundColor: getBgColor(props.row.original.tag),
         padding: 10,
+        overflow: "visible",
       },
     }),
     muiTableHeadCellProps: { style: { paddingRight: 10, paddingLeft: 10 } },
@@ -355,38 +363,11 @@ export default function Home() {
       <Lyrics
         open={showLyrics > 0}
         onClose={() => setShowLyrics(-1)}
-        lyrics={musicList.find((m) => m.number == showLyrics)?.lyrics || ""}
+        lyrics={lyrics}
       />
     </>
   );
 }
-
-const TitlePopper = ({ title, pronounce }: { title: string, pronounce: string }) => {
-  const textRef = useRef<HTMLElement>(null);
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <Popper
-        open={open}
-        anchorEl={textRef.current}
-        placement="top-start"
-      >
-        <Paper elevation={3} sx={{ p: 1 }}>
-          <Typography variant="body2">
-            {pronounce}
-          </Typography>
-        </Paper>
-      </Popper>
-      <Box
-        ref={textRef}
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-      >
-        {title}
-      </Box>
-    </>
-  );
-};
 
 const Lyrics = ({
   open,

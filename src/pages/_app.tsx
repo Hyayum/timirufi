@@ -1,5 +1,6 @@
 import type { AppProps } from "next/app";
 import { useRouter } from "next/router";
+import Head from "next/head";
 import { useState } from "react";
 import {
   createTheme,
@@ -31,6 +32,19 @@ const theme = createTheme({
         transform: "rotate(45deg)",
       },
     },
+    h6: {
+      "::before": {
+        content: '""',
+        backgroundColor: "#84aaf8",
+        position: "relative",
+        top: 21,
+        left: -18,
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        display: "block",
+      },
+    },
   },
   components: {
     MuiCheckbox: {
@@ -45,6 +59,7 @@ const theme = createTheme({
 
 const menuLinks = [
   { name: "TOP", path: "/", desc: "" },
+  { name: "てぃみらりー", path: "/timillery", desc: "BGMとして使えそうな曲" },
   { name: "ペユドチ生成機", path: "/tools/peyudochi", desc: "だれでもペユドチができるツール (文字ごとに確率を設定してランダムに文字列を生成できるツール)" },
   { name: "#てぃみ式 コードエディタ", path: "/tools/chord_editor", desc: "独自の音楽理論「#てぃみ式」を基にコードの情報を入力して再生したり解析したりできるツール" },
 ];
@@ -84,7 +99,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               "&:hover": { bgcolor: "#e0e0e0" },
             }}
           >
-            <ListItemText primary={link.name} secondary={link.desc} slotProps={{ secondary: { fontSize: 12, color: "#aaa" } }} />
+            <ListItemText primary={link.name} secondary={link.desc} slotProps={{ secondary: { fontSize: 12, color: "#999" } }} />
           </List>
         ))}
       </Drawer>
@@ -99,6 +114,10 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <ThemeProvider theme={theme}>
       <MusicListProvider>
+        <Head>
+          <title>てぃみ*れの / みるふぃ</title>
+          <link rel="icon" href="/favicon.ico" />
+        </Head>
         <Layout>
           <Component {...pageProps} />
         </Layout>
