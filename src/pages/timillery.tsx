@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Checkbox,
+  Chip,
   Divider,
   FormControlLabel,
   FormGroup,
@@ -131,27 +132,35 @@ const TimilleryPlayer = ({
   };
 
   return (
-    <Box sx={{ px: 4, pb: 2, bgcolor: focused ? "#f0fffb" : "#fff" }}>
-      <HoverPopper text={music.titlePronounce} placement="bottom-start">
-        <Typography variant="h6">
-          {music.title}
-        </Typography>
-      </HoverPopper>
-      <Box sx={{ my: 1 }}>
+    <Grid container spacing={1} sx={{ px: 4, pb: 2, bgcolor: focused ? "#f0fffb" : "#fff" }}>
+      <Grid size={12}>
+        <HoverPopper text={music.titlePronounce} placement="bottom-start">
+          <Typography variant="h6">
+            {music.title}
+          </Typography>
+        </HoverPopper>
+      </Grid>
+      <Grid size={12}>
+        <Chip label={music.length} size="small" sx={{ mr: 1 }} />
+        <Chip label={`BPM ${music.bpm}`} size="small" />
+      </Grid>
+      <Grid size={12}>
         <TextWithButton
           text={music.description.timillery}
           onClick={(param) => setCurrentTime(param)}
         />
-      </Box>
-      <AudioPlayer
-        src={getSoundUrl(music.number, "timillery")}
-        playing={playing}
-        onClick={onClick}
-        onEnded={onEnded}
-        width={400}
-        ref={audioRef}
-      />
-      <Box sx={{ display: "flex", gap: 2 }}>
+      </Grid>
+      <Grid size={12}>
+        <AudioPlayer
+          src={getSoundUrl(music.number, "timillery")}
+          playing={playing}
+          onClick={onClick}
+          onEnded={onEnded}
+          width={400}
+          ref={audioRef}
+        />
+      </Grid>
+      <Grid size={12} sx={{ display: "flex", gap: 2 }}>
         <OutboundLink href={getSoundUrl(music.number, "timillery")}>
           <Button variant="text" startIcon={<Download />}>
             直接DL
@@ -164,9 +173,8 @@ const TimilleryPlayer = ({
             </Button>
           </OutboundLink>
         )}
-      </Box>
-      
-    </Box>
+      </Grid>
+    </Grid>
   );
 };
 
@@ -185,6 +193,7 @@ const TextWithButton = ({
         const match = part.match(/\/\-(.*?)\-\-(.*?)\-\//);
         return (part && (match ? (
           <Button
+            key={i}
             variant="outlined"
             size="small"
             color="primary"
@@ -201,7 +210,7 @@ const TextWithButton = ({
             {match?.[2]}
           </Button>
         ) : (
-          <Typography variant="body2" sx={{ lineHeight: 1 }}>
+          <Typography key={i} variant="body2" sx={{ lineHeight: 1, mt: 1 }}>
             {part}
           </Typography>
         )));
