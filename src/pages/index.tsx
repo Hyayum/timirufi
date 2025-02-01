@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Avatar,
@@ -15,13 +15,13 @@ import {
   Typography
 } from "@mui/material";
 import { YouTube, Google, X } from "@mui/icons-material";
-import Link from "next/link";
 import { MaterialReactTable, useMaterialReactTable, type MRT_ColumnDef } from "material-react-table";
 import OutboundLink from "@/component/OutboundLink";
 import AudioPlayer from "@/component/AudioPlayer";
 import { Niconico } from "@/component/icons";
-import { API_URL, SOUND_URL, GUIDELINE_URL, ICON_URL } from "@/config/config";
+import { SOUND_URL, GUIDELINE_URL, ICON_URL } from "@/config/config";
 import { MusicListData } from "@/music/model";
+import { useMusicList } from "@/hook/useMusicList";
 
 const getBgColor = (tag: string[]) => {
   if (tag.includes("東方")) {
@@ -34,9 +34,9 @@ const getBgColor = (tag: string[]) => {
 };
 
 export default function Home() {
-  const [musicData, setMusicData] = useState<MusicListData[]>([]);
+  const { musicList, loading } = useMusicList();
   const flags: { [k: number]: boolean } = {};
-  for (const music of musicData) {
+  for (const music of musicList) {
     if (music.show.trial) {
       flags[music.number] = false;
     }
@@ -45,29 +45,12 @@ export default function Home() {
   const [playFlags, setPlayFlags] = useState(flags);
   const [continuous, setContinuous] = useState(false);
   const [showLyrics, setShowLyrics] = useState(Number(searchParams.get("lyrics")) || -1);
-  const [loading, setLoading] = useState(false);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(API_URL, { cache: "no-cache" });
-      const data = await response.json();
-      setMusicData(data);
-    } catch (e) {
-      console.log(e);
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
 
   const handleChangeFlag = (n: number) => {
     const flag = !playFlags[n];
     if (flag) {
       const flags: { [k: number]: boolean } = {};
-      for (const { number } of musicData) {
+      for (const { number } of musicList) {
         flags[number] = n == number ? true : false;
       }
       setPlayFlags(flags);
@@ -243,7 +226,7 @@ export default function Home() {
 
   const table = useMaterialReactTable({
     columns,
-    data: musicData.filter((m) => m.show.list && (m.url.niconico || m.url.youtube))
+    data: musicList.filter((m) => m.show.list && (m.url.niconico || m.url.youtube))
                    .sort((a, b) => b.number - a.number),
     enablePagination: false,
     enableColumnActions: false,
@@ -372,7 +355,7 @@ export default function Home() {
       <Lyrics
         open={showLyrics > 0}
         onClose={() => setShowLyrics(-1)}
-        lyrics={musicData.find((m) => m.number == showLyrics)?.lyrics || ""}
+        lyrics={musicList.find((m) => m.number == showLyrics)?.lyrics || ""}
       />
     </>
   );

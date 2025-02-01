@@ -11,6 +11,7 @@ import {
   ListItemText,
 } from "@mui/material";
 import { ChevronLeft, Menu } from "@mui/icons-material";
+import { MusicListProvider } from "@/hook/useMusicList";
 
 const theme = createTheme({
   typography: {
@@ -97,9 +98,11 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 export default function App({ Component, pageProps }: AppProps) {
   return (
     <ThemeProvider theme={theme}>
-      <Layout>
-        <Component {...pageProps} />
-      </Layout>
+      <MusicListProvider>
+        <Layout>
+          <Component {...pageProps} />
+        </Layout>
+      </MusicListProvider>
     </ThemeProvider>
   );
 }
