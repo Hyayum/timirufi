@@ -105,13 +105,14 @@ export default function Home() {
         const youtubeId = url.youtube.split("/").pop();
         const thumbnailUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg` : "";
         return thumbnailUrl ? (
-          <img
-            src={thumbnailUrl}
-            alt={title}
-            loading="lazy"
-            width={128}
-            height={72}
-          />
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <img
+              src={thumbnailUrl}
+              alt={title}
+              loading="lazy"
+              width={100}
+            />
+          </Box>
         ) : (
           <></>
         );
@@ -295,21 +296,6 @@ export default function Home() {
   依頼は受け付けていません。
   楽曲は基本的に自由に使っていいことになっていますが一応下のガイドラインを確認しておいてください。
   (要約の条件(「二次創作の場合やBGMとして使う場合」)に当てはまっていれば要約の部分だけ見れば大丈夫です)`;
-
-  const works = [
-    {
-      label: "#てぃみ式 コードエディタ",
-      url: "/tools/chord_editor",
-      description: "独自の音楽理論「#てぃみ式」を基にコードの情報を入力して再生したり解析したりできるツール",
-      outbound: false,
-    },
-    {
-      label: "ペユドチ生成機",
-      url: "/tools/peyudochi",
-      description: "だれでもペユドチができるツール (文字ごとに確率を設定してランダムに文字列を生成できるツール)",
-      outbound: false,
-    },
-  ];
 
   return (
     <>
