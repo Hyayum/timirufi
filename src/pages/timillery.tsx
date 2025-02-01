@@ -62,7 +62,7 @@ export default function Timillery() {
   };
 
   return (
-    <Grid container spacing={5} sx={{ m: 5, mb: 10, minWidth: 800 }}>
+    <Grid container spacing={5} sx={{ m: 5, mb: 10, minWidth: 500 }}>
       <Grid size={12}>
         <Typography variant="h4" sx={{ textAlign: "center" }}>
           てぃみらりー
