@@ -5,11 +5,13 @@ import { API_URL } from "@/config/config";
 type Context = {
   musicList: MusicListData[];
   loading: boolean;
+  reload: () => void;
 };
 
 const defaultContext: Context = {
   musicList: [],
   loading: false,
+  reload: () => {},
 };
 
 const MusicListContext = createContext(defaultContext);
@@ -35,7 +37,7 @@ export const MusicListProvider = ({ children }: { children: React.ReactNode }) =
   }, []);
 
   return (
-    <MusicListContext.Provider value={{ musicList, loading }}>
+    <MusicListContext.Provider value={{ musicList, loading, reload: fetchData }}>
       {children}
     </MusicListContext.Provider>
   );

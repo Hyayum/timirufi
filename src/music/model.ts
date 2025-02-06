@@ -59,9 +59,37 @@ export type MusicDbData = {
   lyrics: string;
 };
 
+export const defaultMusicDbData: MusicDbData = {
+  number: 0,
+  numberDecimal: 0,
+  origin: "",
+  title: "",
+  titlePronounce: "",
+  vocal: "",
+  niconicoUrl: "",
+  commonsUrl: "",
+  youtubeUrl: "",
+  soundCloudUrl: "",
+  offVocalUrl: "",
+  bpm: "",
+  length: "",
+  createdAt: "",
+  uploadedAt: "",
+  typeCode: "",
+  showTrial: 0,
+  showAtList: 0,
+  showAtMq: 0,
+  showAtTm: 0,
+  showLyrics: 0,
+  mqDescription: "",
+  tmDescription: "",
+  lyrics: "",
+};
+
 export type MusicPostData = MusicDbData & {
   where: {
     number: number | "new";
     decimal: number;
   };
+  token: string;
 };

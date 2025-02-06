@@ -116,7 +116,7 @@ export default function App({ Component, pageProps }: AppProps) {
       <MusicListProvider>
         <Head>
           <title>てぃみ*れの / みるふぃ</title>
-          <link rel="icon" href="/favicon.ico" />
+          <link rel="icon" href="/timirufi/favicon.ico" />
         </Head>
         <Layout>
           <Component {...pageProps} />
