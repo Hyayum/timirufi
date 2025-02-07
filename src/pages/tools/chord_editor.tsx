@@ -145,7 +145,7 @@ export default function Home() {
 
   return (
     <>
-      <Grid container spacing={3} sx={{ m: 5, minWidth: 1250 }}>
+      <Grid container spacing={3} sx={{ p: 5, minWidth: 1250 }}>
         <Grid size={12}>
           <Typography variant="h4" sx={{ mb: 2, textAlign: "center" }}>
             #てぃみ式 コードエディタ

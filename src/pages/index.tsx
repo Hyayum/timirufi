@@ -61,7 +61,7 @@ export default function Home() {
 
   return (
     <Box>
-      <Grid container spacing={5} sx={{ m: 5, mb: 10, minWidth: 750 }}>
+      <Grid container spacing={5} sx={{ p: 5, pb: 10, minWidth: 750 }}>
         <Grid size={12}>
           <Typography variant="h4" sx={{ textAlign: "center" }}>
             てぃみ*れの / みるふぃ のページ（元Locossic）

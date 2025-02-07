@@ -268,7 +268,7 @@ export default function Peyudochi() {
   const shareQuery = new URLSearchParams({ text: shareText });
 
   return (
-    <Grid container spacing={5} sx={{ m: 5, mb: 20, minWidth: 800 }}>
+    <Grid container spacing={5} sx={{ p: 5, pb: 20, minWidth: 800 }}>
       <Grid size={12}>
         <Typography variant="h4" sx={{ textAlign: "center" }}>
           ペユドチ生成機
