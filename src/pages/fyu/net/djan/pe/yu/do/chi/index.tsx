@@ -139,7 +139,7 @@ const Fyunetdjan = () => {
   };
 
   return (
-    <Box sx={{ m: 5, minWidth: 800 }}>
+    <Box sx={{ p: 5, minWidth: 800 }}>
       {!(apiData.token && apiData.url) ? (
         <Box>
           <input

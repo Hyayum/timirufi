@@ -355,7 +355,7 @@ export default function Peyudochi() {
         <Typography variant="body1" sx={{ mb: 1 }}>
           気に入った単語をクリックしてシェア！少しいじってもOK！
         </Typography>
-        <Box sx={{ display: "flex" }}>
+        <Box sx={{ display: "flex", alignItems: "center" }}>
           <TextField
             size="small"
             variant="outlined"
