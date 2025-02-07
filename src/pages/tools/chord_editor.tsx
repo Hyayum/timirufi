@@ -16,10 +16,9 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { PlayArrow } from "@mui/icons-material";
+import { PlayArrow, Stop } from "@mui/icons-material";
 import { useRef, useState, useEffect, Component } from "react";
 import NumberField from "@/component/NumberField";
-import ChordPreviewButton from "@/component/ChordPreviewButton";
 import { getChordPlayer, createMidi } from "@/chord/midi";
 import { getChordsForUtils, accdNumToSf, fitRange, calcMainFunc, mainFuncToStr, calcScaleLevel, calcRealname, calcChordProg } from "@/chord/utils";
 import { Chord, ChordForUtils, keyOptions, defaultChord, keyColors } from "@/chord/model";
@@ -411,7 +410,7 @@ const ChordEditorContent = (props: ChordEditorProps) => {
         />
 
         <Box sx={{ width: 80, bgcolor: keyColors[fitRange(key, 0, 12)], borderRadius: 3 }}>
-          <Typography variant="h6" sx={{ color: "#555", textAlign: "center", my: 0.4 }}>
+          <Typography variant="subtitle1" sx={{ color: "#555", fontSize: "1.25rem", textAlign: "center", my: 0.4 }}>
             {mainFunc}
           </Typography>
         </Box>
@@ -442,7 +441,7 @@ const ChordEditorContent = (props: ChordEditorProps) => {
         />
 
         <Box sx={{ width: 60 }}>
-          <Typography variant="h6" sx={{ color: "#555", textAlign: "center", my: 0.5 }}>
+          <Typography variant="subtitle1" sx={{ color: "#555", fontSize: "1.25rem", textAlign: "center", my: 0.5 }}>
             {calcScaleLevel(chord.accd)}
           </Typography>
         </Box>
@@ -710,6 +709,78 @@ const AccdSelector = ({
         </Box>
       </Paper>
     </Popover>
+  );
+};
+
+interface PreviewButtonProps {
+  chords: ChordForUtils[];
+  setIndex: (i: number) => void;
+  setLoading: (i: boolean) => void;
+};
+
+const ChordPreviewButton = (props: PreviewButtonProps) => {
+  const { chords, setIndex, setLoading } = props;
+  const [playing, setPlaying] = useState(false);
+  const playingRef = useRef(playing);
+  useEffect(() => {
+    playingRef.current = playing;
+  }, [playing]);
+  const [startFrom, setStartFrom] = useState(1);
+
+  const previewAll = async () => {
+    setLoading(true);
+    const playChord = await getChordPlayer();
+    setLoading(false);
+    setPlaying(true);
+    for (let i = Math.max(startFrom - 1, 0); i < chords.length; i++) {
+      setIndex(i);
+      await playChord(chords[i]);
+      if (!playingRef.current) break;
+    }
+    setPlaying(false);
+  };
+
+  const stopPlayer = () => {
+    setPlaying(false);
+  };
+
+  return (
+    <Box sx={{ mr: 2, display: "flex" }}>
+      {!playing && (
+        <Button
+          color="warning"
+          variant="contained"
+          size="small"
+          startIcon={<PlayArrow />}
+          onClick={previewAll}
+          sx={{ mr: 1, width: 120 }}
+        >
+          全て再生
+        </Button>
+      )}
+      {playing && (
+        <Button
+          color="warning"
+          variant="contained"
+          size="small"
+          startIcon={<Stop />}
+          onClick={stopPlayer}
+          sx={{ mr: 1, width: 120 }}
+        >
+          停止
+        </Button>
+      )}
+      <Box sx={{ width: 100 }}>
+        <NumberField
+          id="startFrom"
+          label="開始位置"
+          size="small"
+          value={startFrom}
+          onChange={(e) => setStartFrom(Math.max(Number(e.target.value), 0))}
+          fullWidth
+        />
+      </Box>
+    </Box>
   );
 };
 
