@@ -136,7 +136,7 @@ const TimilleryPlayer = ({
   };
 
   return (
-    <Grid container id={String(music.number)} spacing={1} sx={{ px: 4, pb: 2, bgcolor: focused ? "#f0fffb" : "#fff" }}>
+    <Grid container id={String(music.number)} spacing={1} sx={{ px: 4, pb: 2, bgcolor: focused ? "#f0fffb" : "#fff", borderRadius: 2 }}>
       <Grid size={12}>
         <HoverPopper text={music.titlePronounce} placement="bottom-start">
           <Typography variant="h6">

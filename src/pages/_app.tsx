@@ -59,6 +59,7 @@ const theme = createTheme({
 
 const menuLinks = [
   { name: "TOP", path: "/", desc: "" },
+  { name: "楽曲リスト", path: "/list", desc: "今まで作ってきた曲リスト" },
   { name: "てぃみらりー", path: "/timillery", desc: "BGMとして使えそうな曲" },
   { name: "ペユドチ生成機", path: "/tools/peyudochi", desc: "だれでもペユドチができるツール (文字ごとに確率を設定してランダムに文字列を生成できるツール)" },
   { name: "#てぃみ式 コードエディタ", path: "/tools/chord_editor", desc: "独自の音楽理論「#てぃみ式」を基にコードの情報を入力して再生したり解析したりできるツール" },
