@@ -2,7 +2,7 @@ import { Html, Head, Main, NextScript } from "next/document";
 
 export default function Document() {
   return (
-    <Html lang="ja" style={{ background: "url(/timrufi/bg.png) top left / 1200px no-repeat" }}>
+    <Html lang="ja" style={{ background: "url(/timirufi/bg.png) top left / 1200px no-repeat" }}>
       <Head />
       <body className="antialiased">
         <Main />
