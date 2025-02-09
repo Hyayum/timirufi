@@ -131,6 +131,7 @@ export default function Home() {
                 height={198}
                 allow="accelerometer;  autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture;"
                 allowFullScreen
+                style={{ border: "none" }}
               />
             </Grid>
           ))}

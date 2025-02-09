@@ -41,6 +41,7 @@ export default function List() {
   const [continuous, setContinuous] = useState(false);
   const [showLyrics, setShowLyrics] = useState(-1);
   const lyrics = musicList.find((m) => m.number == showLyrics)?.lyrics || "";
+  const lyricsTitle = musicList.find((m) => m.number == showLyrics)?.title || "";
 
   useEffect(() => {
     const param = searchParams.get("lyrics");
@@ -272,6 +273,7 @@ export default function List() {
         open={showLyrics > 0}
         onClose={() => setShowLyrics(-1)}
         lyrics={lyrics}
+        title={lyricsTitle}
       />
     </Grid>
   );
@@ -281,10 +283,12 @@ const Lyrics = ({
   open,
   onClose,
   lyrics,
+  title,
 }: {
   open: boolean,
   onClose: (b: boolean) => void,
   lyrics: string,
+  title: string,
 }) => {
   const [show, setShow] = useState<{ [k: string]: boolean }>({
     mk: true,
@@ -295,6 +299,11 @@ const Lyrics = ({
   return (
     <Dialog open={open} onClose={onClose}>
       <Grid container spacing={2} sx={{ p: 3, whiteSpace: "pre-wrap" }}>
+        <Grid size={12}>
+          <Typography variant="h5" sx={{ ml: 2 }}>
+            {title}
+          </Typography>
+        </Grid>
         <Grid size={12}>
           {open && (
             <>
