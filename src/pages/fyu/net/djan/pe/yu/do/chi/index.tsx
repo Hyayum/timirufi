@@ -16,7 +16,7 @@ import { useMusicList } from "@/hook/useMusicList";
 import { MusicDbData, MusicPostData, defaultMusicDbData } from "@/music/model";
 import NumberField from "@/component/NumberField";
 
-const TOKEN_URL = "https://script.google.com/macros/s/AKfycbzWZrzdAPmRbxNRPdIFIkbi0LwsARcARUg5qRH1ugmEA-M03qC2L-cjuKczp4Yr5au_/exec";
+const TOKEN_URL = "https://gettoken-oxiwlrzn6q-an.a.run.app";
 
 const Fyunetdjan = () => {
   const [apiData, setApiData] = useState({ token: "", url: "" });
@@ -40,7 +40,7 @@ const Fyunetdjan = () => {
     try {
       const response = await fetch(TOKEN_URL, {
         method: "POST",
-        headers: {"Content-Type": "text/plain"},
+        headers: {"Content-Type": "application/json"},
         body: JSON.stringify({ token: token }),
       });
       const jsonData = await response.json();
@@ -60,7 +60,7 @@ const Fyunetdjan = () => {
       const hashed = CryptoJS.SHA256(inputPass).toString(CryptoJS.enc.Base64);
       const response = await fetch(TOKEN_URL, {
         method: "POST",
-        headers: {"Content-Type": "text/plain"},
+        headers: {"Content-Type": "application/json"},
         body: JSON.stringify({ id: inputId, pass: hashed }),
       });
       const jsonData = await response.json();
@@ -79,17 +79,8 @@ const Fyunetdjan = () => {
   }, []);
 
   const getMusicDetail = async () => {
-    if (!apiData.url) return;
-    setLoading(true);
-    try {
-      const response = await fetch(`${apiData.url}?id=${editId}`);
-      const jsonData: MusicDbData = await response.json();
-      setFormData(jsonData);
-    } catch (e) {
-      console.log(e);
-      setApiData({ token: "", url: "" });
-    }
-    setLoading(false);
+    const data = musicList.find((music) => music.number == editId);
+    if (data) setFormData({ ...data });
   };
 
   useEffect(() => {
@@ -102,10 +93,10 @@ const Fyunetdjan = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, checked } = e.target as { name: keyof MusicDbData, value: string, checked: boolean };
-    if (name == "number" || name == "numberDecimal") {
+    if (name == "number") {
       setFormData({ ...formData, [name]: Number(value) });
     } else if (name == "showAtList" || name == "showTrial" || name == "showLyrics" || name == "showAtMq" || name == "showAtTm") {
-      setFormData({ ...formData, [name]: checked ? 1 : 0 });
+      setFormData({ ...formData, [name]: checked });
     } else {
       setFormData({ ...formData, [name]: value });
     }
@@ -115,15 +106,14 @@ const Fyunetdjan = () => {
     if (!apiData.url || !apiData.token) return;
     const request: MusicPostData = {
       ...formData,
-      where: editId == "new" ? { number: editId, decimal: 0 } :
-        { number: Math.floor(editId), decimal: (10 * editId) % 10 },
+      where: editId,
       token: apiData.token,
     };
     setLoading(true);
     try {
       const response = await fetch(apiData.url, {
         method: "POST",
-        headers: {"Content-Type": "text/plain"},
+        headers: {"Content-Type": "application/json"},
         body: JSON.stringify(request),
       });
       const jsonData = await response.json();
@@ -148,8 +138,8 @@ const Fyunetdjan = () => {
             style={{
               ...hiddenStyle,
               position: "absolute",
-              top: 200,
-              left: 50,
+              top: 600,
+              left: 400,
             }}
           />
           <input
@@ -159,15 +149,15 @@ const Fyunetdjan = () => {
             style={{
               ...hiddenStyle,
               position: "absolute",
-              top: 80,
-              left: 300,
+              top: 400,
+              left: 500,
             }}
           />
           <button
             style={{
               ...hiddenStyle,
               position: "absolute",
-              top: 400,
+              top: 300,
               left: 200,
               fontSize: 40,
               color: "#ff3366",
@@ -185,7 +175,7 @@ const Fyunetdjan = () => {
               <ListItemText
                 key={music.number}
                 primary={`${music.number} ${music.title}`}
-                secondary={music.origin.join(" ") || music.vocal.join(" ")}
+                secondary={music.origin || music.vocal}
                 onClick={() => setEditId(music.number)}
                 sx={{ cursor: "pointer", "&:hover": { bgcolor: "#ddd" } }}
               />
@@ -197,22 +187,20 @@ const Fyunetdjan = () => {
           <Button onClick={() => setEditId(0)} variant="outlined" size="small">戻る</Button>
           <Box sx={{ display: "flex" }}>
             <NumberField size="small" value={formData.number} name="number" onChange={handleChange} />
-            <NumberField size="small" value={formData.numberDecimal} name="numberDecimal" onChange={handleChange} />
           </Box>
           <TextField size="small" value={formData.title} name="title" label="タイトル" onChange={handleChange} />
           <TextField size="small" value={formData.titlePronounce} name="titlePronounce" label="タイトル読み" onChange={handleChange} />
-          <TextField size="small" value={formData.origin} name="origin" label="原曲" onChange={handleChange} />
-          <TextField size="small" value={formData.vocal} name="vocal" label="ボーカル" onChange={handleChange} />
+          <TextField size="small" value={formData.origin} name="origin" label="原曲 (「, 」区切り)" onChange={handleChange} />
+          <TextField size="small" value={formData.vocal} name="vocal" label="ボーカル (「, 」区切り)" onChange={handleChange} />
           <TextField size="small" value={formData.niconicoUrl} name="niconicoUrl" label="ニコニコURL" onChange={handleChange} />
           <TextField size="small" value={formData.youtubeUrl} name="youtubeUrl" label="YouTube URL" onChange={handleChange} />
           <TextField size="small" value={formData.commonsUrl} name="commonsUrl" label="コモンズURL" onChange={handleChange} />
-          <TextField size="small" value={formData.soundCloudUrl} name="soundCloudUrl" label="SoundCloud URL" onChange={handleChange} />
           <TextField size="small" value={formData.offVocalUrl} name="offVocalUrl" label="off vocal URL" onChange={handleChange} />
           <TextField size="small" value={formData.bpm} name="bpm" label="BPM" onChange={handleChange} />
           <TextField size="small" value={formData.length} name="length" label="長さ" onChange={handleChange} />
           <TextField size="small" value={formData.createdAt} name="createdAt" label="制作時期 (yyyy.MM○)" onChange={handleChange} />
           <TextField size="small" value={formData.uploadedAt} name="uploadedAt" label="初公開日 (yyyy.MM.dd)" onChange={handleChange} />
-          <TextField size="small" value={formData.typeCode} name="typeCode" label="タイプ ((oi, ov, ti) + abq)" onChange={handleChange} />
+          <TextField size="small" value={formData.tag} name="tag" label="タグ (「, 」区切り, 東方, オリジナル, inst, vocal, ボカロ(広義))" onChange={handleChange} />
           <FormControlLabel control={<Switch size="small" checked={!!formData.showAtList} name="showAtList" onChange={handleChange} />} label="リスト表示" />
           <FormControlLabel control={<Switch size="small" checked={!!formData.showTrial} name="showTrial" onChange={handleChange} />} label="試聴音源" />
           <FormControlLabel control={<Switch size="small" checked={!!formData.showLyrics} name="showLyrics" onChange={handleChange} />} label="歌詞表示" />

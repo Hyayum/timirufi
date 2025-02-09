@@ -1,9 +1,9 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import { MusicListData } from "@/music/model";
+import { MusicDbData } from "@/music/model";
 import { API_URL } from "@/config/config";
 
 type Context = {
-  musicList: MusicListData[];
+  musicList: MusicDbData[];
   loading: boolean;
   reload: () => void;
 };
@@ -17,7 +17,7 @@ const defaultContext: Context = {
 const MusicListContext = createContext(defaultContext);
 
 export const MusicListProvider = ({ children }: { children: React.ReactNode }) => {
-  const [musicList, setMusicList] = useState<MusicListData[]>([]);
+  const [musicList, setMusicList] = useState<MusicDbData[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchData = async () => {

@@ -12,7 +12,7 @@ import {
   Typography
 } from "@mui/material";
 import { Download } from "@mui/icons-material";
-import { MusicListData } from "@/music/model";
+import { MusicDbData } from "@/music/model";
 import { getSoundUrl } from "@/music/utils";
 import { Niconico } from "@/component/icons";
 import AudioPlayer from "@/component/AudioPlayer";
@@ -23,9 +23,9 @@ import { useMusicList } from "@/hook/useMusicList";
 
 export default function Timillery() {
   const { musicList, loading } = useMusicList();
-  const timilleryList = musicList.filter((music) => music.show.timillery).sort((m1, m2) => m2.number - m1.number);
+  const timilleryList = musicList.filter((music) => music.showAtTm).sort((m1, m2) => m2.number - m1.number);
   const flags = timilleryList.reduce((acc, music) => (
-    music.show.timillery ? { ...acc, [music.number]: false } : acc
+    { ...acc, [music.number]: false }
   ), {} as { [k: number]: boolean });
   const searchParams = useSearchParams();
   const [playFlags, setPlayFlags] = useState(flags);
@@ -47,7 +47,7 @@ export default function Timillery() {
     const flag = !playFlags[n];
     if (flag) {
       const flags = timilleryList.reduce((acc, music) => (
-        music.show.trial ? { ...acc, [music.number]: music.number == n } : acc
+        { ...acc, [music.number]: music.number == n }
       ), {} as { [k: number]: boolean });;
       setPlayFlags(flags);
     } else {
@@ -119,7 +119,7 @@ const TimilleryPlayer = ({
   onEnded,
   focused,
 }: {
-  music: MusicListData;
+  music: MusicDbData;
   playing: boolean;
   onClick: () => void;
   onEnded: () => void;
@@ -150,7 +150,7 @@ const TimilleryPlayer = ({
       </Grid>
       <Grid size={12}>
         <TextWithButton
-          text={music.description.timillery}
+          text={music.tmDescription}
           onClick={(param) => setCurrentTime(param)}
         />
       </Grid>
@@ -170,8 +170,8 @@ const TimilleryPlayer = ({
             直接DL
           </Button>
         </OutboundLink>
-        {music.url.commons && (
-          <OutboundLink href={music.url.commons}>
+        {music.commonsUrl && (
+          <OutboundLink href={music.commonsUrl}>
             <Button variant="text" startIcon={<Niconico />}>
               ニコニ・コモンズ
             </Button>

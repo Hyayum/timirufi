@@ -17,7 +17,7 @@ import OutboundLink from "@/component/OutboundLink";
 import AudioPlayer from "@/component/AudioPlayer";
 import HoverPopper from "@/component/HoverPopper";
 import { Niconico } from "@/component/icons";
-import { MusicListData } from "@/music/model";
+import { MusicDbData } from "@/music/model";
 import { getSoundUrl } from "@/music/utils";
 import { useMusicList } from "@/hook/useMusicList";
 
@@ -34,7 +34,7 @@ const getBgColor = (tag: string[]) => {
 export default function List() {
   const { musicList, loading } = useMusicList();
   const flags = musicList.reduce((acc, music) => (
-    music.show.trial ? { ...acc, [music.number]: false } : acc
+    music.showTrial ? { ...acc, [music.number]: false } : acc
   ), {} as { [k: number]: boolean });
   const searchParams = useSearchParams();
   const [playFlags, setPlayFlags] = useState(flags);
@@ -53,7 +53,7 @@ export default function List() {
     const flag = !playFlags[n];
     if (flag) {
       const flags = musicList.reduce((acc, music) => (
-        music.show.trial ? { ...acc, [music.number]: music.number == n } : acc
+        music.showTrial ? { ...acc, [music.number]: music.number == n } : acc
       ), {} as { [k: number]: boolean });;
       setPlayFlags(flags);
     } else {
@@ -65,7 +65,7 @@ export default function List() {
   const handlePlayEnded = (n: number) => {
     if (!continuous) return;
     const playerIds = table.getSortedRowModel().rows
-                           .filter((row) => row.original.show.trial)
+                           .filter((row) => row.original.showTrial)
                            .map((row) => row.original.number);
     const nextId = playerIds[playerIds.indexOf(n) + 1];
     if (nextId) {
@@ -73,7 +73,7 @@ export default function List() {
     }
   };
 
-  const columns: MRT_ColumnDef<MusicListData>[] = [
+  const columns: MRT_ColumnDef<MusicDbData>[] = [
     {
       header: "No.",
       accessorKey: "number",
@@ -86,8 +86,8 @@ export default function List() {
     {
       header: "サムネ",
       Cell: ({ cell }) => {
-        const { url, title } = cell.row.original;
-        const youtubeId = url.youtube.split("/").pop();
+        const { youtubeUrl, title } = cell.row.original;
+        const youtubeId = youtubeUrl.split("/").pop();
         const thumbnailUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg` : "";
         return thumbnailUrl ? (
           <Box sx={{ display: "flex", alignItems: "center" }}>
@@ -106,11 +106,11 @@ export default function List() {
     {
       header: "試聴",
       Cell: ({ cell }) => {
-        const { number, show } = cell.row.original;
+        const { number, showTrial } = cell.row.original;
         const url = getSoundUrl(number, "trial")
         return (
           <>
-            {show.trial ? (
+            {showTrial ? (
               <AudioPlayer 
                 src={url}
                 playing={playFlags[number]}
@@ -140,25 +140,25 @@ export default function List() {
       header: "Links",
       size: 100,
       Cell: ({ cell }) => {
-        const { niconico, youtube, offvocal } = cell.row.original.url;
+        const { niconicoUrl, youtubeUrl, offVocalUrl } = cell.row.original;
         return (
           <>
-            {niconico && (
-              <OutboundLink href={niconico}>
+            {niconicoUrl && (
+              <OutboundLink href={niconicoUrl}>
                 <Button variant="text" startIcon={<Niconico />}>
                   ニコニコ
                 </Button>
               </OutboundLink>
             )}
-            {youtube && (
-              <OutboundLink href={youtube}>
+            {youtubeUrl && (
+              <OutboundLink href={youtubeUrl}>
                 <Button variant="text" startIcon={<YouTube />}>
                   YouTube
                 </Button>
               </OutboundLink>
             )}
-            {offvocal && (
-              <OutboundLink href={offvocal}>
+            {offVocalUrl && (
+              <OutboundLink href={offVocalUrl}>
                 <Button variant="text" startIcon={<Google />}>
                   off vocal
                 </Button>
@@ -170,14 +170,14 @@ export default function List() {
     },
     {
       header: "Vocal",
-      accessorFn: (cell) => cell.vocal.join("・"),
+      accessorFn: (cell) => cell.vocal.split(", ").join("・"),
       minSize: 75,
     },
     {
       header: "原曲",
       Cell: ({ cell }) => (
         <Box sx={{ whiteSpace: "pre-wrap" }}>
-          {cell.row.original.origin.join("\n")}
+          {cell.row.original.origin.split(", ").join("\n")}
         </Box>
       ),
       minSize: 100,
@@ -185,10 +185,10 @@ export default function List() {
     {
       header: "歌詞",
       Cell: ({ cell }) => {
-        const { show, lyrics, number } = cell.row.original;
+        const { showLyrics, lyrics, number } = cell.row.original;
         return (
           <>
-            {show.lyrics && lyrics && (
+            {showLyrics && lyrics && (
               <Button
                 size="small"
                 variant="outlined"
@@ -223,20 +223,20 @@ export default function List() {
     },
     {
       header: "タグ",
-      accessorFn: (cell) => cell.tag.join(", "),
+      accessorFn: (cell) => cell.tag,
     },
   ];
 
   const table = useMaterialReactTable({
     columns,
-    data: musicList.filter((m) => m.show.list && (m.url.niconico || m.url.youtube))
+    data: musicList.filter((m) => m.showAtList)
                    .sort((a, b) => b.number - a.number),
     enablePagination: false,
     enableColumnActions: false,
     muiTableBodyRowProps: { hover: false },
     muiTableBodyCellProps: (props) => ({
       style: {
-        backgroundColor: getBgColor(props.row.original.tag),
+        backgroundColor: getBgColor(props.row.original.tag.split(", ")),
         padding: 10,
         overflow: "visible",
       },
