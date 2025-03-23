@@ -1,11 +1,13 @@
 import type { AppProps } from "next/app";
 import { useRouter } from "next/router";
 import Head from "next/head";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import {
   createTheme,
   ThemeProvider,
+  Backdrop,
   Box,
+  CircularProgress,
   Divider,
   Drawer,
   IconButton,
@@ -66,11 +68,19 @@ const theme = createTheme({
         },
       },
     },
+    MuiListItemIcon: {
+      styleOverrides: {
+        root: {
+          minWidth: 35,
+        },
+      },
+    },
   },
 });
 
 const menuLinks = [
   { name: "TOP", path: "/", desc: "" },
+  { name: "楽曲使用のガイドライン", path: "/guideline", desc: "楽曲を使用する時はここを確認" },
   { name: "楽曲リスト", path: "/list", desc: "今まで作ってきた曲リスト" },
   { name: "てぃみらりー", path: "/timillery", desc: "BGMとして使えそうな曲" },
   { name: "ペユドチ生成機", path: "/tools/peyudochi", desc: "だれでもペユドチができるツール (文字ごとに確率を設定してランダムに文字列を生成できるツール)" },
@@ -79,11 +89,14 @@ const menuLinks = [
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const handleClickLink = (path: string) => {
     setDrawerOpen(false);
-    router.push(path);
+    startTransition(() => {
+      router.push(path);
+    });
   };
 
   return (
@@ -123,9 +136,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         <Divider />
         <List>
           {platforms.map((link) => (
-            <OutboundLink href={link.url}>
+            <OutboundLink href={link.url} key={link.url}>
               <ListItemButton
-                key={link.url}
                 sx={{
                   cursor: "pointer",
                   px: 2,
@@ -142,6 +154,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       <Box>
         {children}
       </Box>
+      <Backdrop open={isPending}>
+        <CircularProgress sx={{ color: "white" }} />
+      </Backdrop>
     </Box>
   );
 };

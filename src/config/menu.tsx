@@ -23,6 +23,21 @@ export const platforms = [
     icon: <YouTube />
   },
   {
+    label: "TikTok",
+    url: "https://www.tiktok.com/@timireno",
+    icon: <></>
+  },
+  {
+    label: "SoundCloud",
+    url: "https://soundcloud.com/milfy6v6",
+    icon: <></>
+  },
+  {
+    label: "piapro",
+    url: "https://piapro.jp/timireno",
+    icon: <></>
+  },
+  {
     label: "Twitter",
     url: "https://twitter.com/Timirufi",
     icon: <X />

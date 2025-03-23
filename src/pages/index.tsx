@@ -7,7 +7,7 @@ import {
 } from "@mui/material";
 import { ArrowForward } from "@mui/icons-material";
 import OutboundLink from "@/component/OutboundLink";
-import { GUIDELINE_URL, ICON_URL } from "@/config/config";
+import { ICON_URL } from "@/config/config";
 import { platforms } from "@/config/menu";
 import { useRouter } from "next/router";
 
@@ -18,8 +18,7 @@ export default function Home() {
   ペユドチな曲を作ってます。
   動画・イラスト等もほとんど自分で作っています。
   依頼は受け付けていません。
-  楽曲は基本的に自由に使っていいことになっていますが一応下のガイドラインを確認しておいてください。
-  (要約の条件(「二次創作の場合やBGMとして使う場合」)に当てはまっていれば要約の部分だけ見れば大丈夫です)`;
+  楽曲は基本的に自由に使っていいことになっていますが一応下のガイドラインを確認しておいてください。`;
 
   const topSongUrls = [
     { url: "https://www.youtube.com/embed/1HKPSUHxAaU", desc: "明るいボカロ曲1" },
@@ -54,11 +53,9 @@ export default function Home() {
               {line}
             </Typography>
           ))}
-          <OutboundLink href={GUIDELINE_URL}>
-            <Button variant="text">
-              楽曲使用のガイドライン
-            </Button>
-          </OutboundLink>
+          <Button variant="text" onClick={() => router.push("/guideline")}>
+            楽曲使用のガイドライン
+          </Button>
         </Grid>
 
         <Grid size="grow">
