@@ -5,41 +5,14 @@ import {
   Grid2 as Grid,
   Typography
 } from "@mui/material";
-import { YouTube, X, ArrowForward } from "@mui/icons-material";
+import { ArrowForward } from "@mui/icons-material";
 import OutboundLink from "@/component/OutboundLink";
-import { Niconico } from "@/component/icons";
 import { GUIDELINE_URL, ICON_URL } from "@/config/config";
+import { platforms } from "@/config/menu";
 import { useRouter } from "next/router";
 
 export default function Home() {
   const router = useRouter();
-  const links = [
-    {
-      label: "ニコニコ１(主に東方)",
-      url: "http://www.nicovideo.jp/user/51008840",
-      icon: <Niconico />
-    },
-    {
-      label: "ニコニコ２(主にボカロ)",
-      url: "http://www.nicovideo.jp/user/119635362",
-      icon: <Niconico />
-    },
-    {
-      label: "ニコニ・コモンズ",
-      url: "http://commons.nicovideo.jp/user/upload/3346494",
-      icon: <Niconico />
-    },
-    {
-      label: "YouTube",
-      url: "https://www.youtube.com/c/MiLfy6o6_mei",
-      icon: <YouTube />
-    },
-    {
-      label: "Twitter",
-      url: "https://twitter.com/Timirufi",
-      icon: <X />
-    },
-  ];
 
   const profile = `ボカロ曲、東方アレンジ、インストオリジナル曲を作ってます。
   ペユドチな曲を作ってます。
@@ -92,7 +65,7 @@ export default function Home() {
           <Typography variant="h5">
             Links
           </Typography>
-          {links.map((link) => (
+          {platforms.map((link) => (
             <Box key={link.label}>
               <OutboundLink href={link.url}>
                 <Button variant="text" startIcon={link.icon}>

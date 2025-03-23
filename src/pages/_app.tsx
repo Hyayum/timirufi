@@ -6,13 +6,18 @@ import {
   createTheme,
   ThemeProvider,
   Box,
+  Divider,
   Drawer,
   IconButton,
   List,
+  ListItemButton,
+  ListItemIcon,
   ListItemText,
 } from "@mui/material";
 import { ChevronLeft, Menu } from "@mui/icons-material";
 import { MusicListProvider } from "@/hook/useMusicList";
+import { platforms } from "@/config/menu";
+import OutboundLink from "@/component/OutboundLink";
 
 const theme = createTheme({
   typography: {
@@ -96,20 +101,43 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             <ChevronLeft />
           </IconButton>
         </Box>
-        {menuLinks.map((link) => (
-          <List
-            key={link.path}
-            onClick={() => handleClickLink(link.path)}
-            sx={{
-              cursor: "pointer",
-              px: 2,
-              bgcolor: router.pathname == link.path ? "#f0f0f0" : "#fff",
-              "&:hover": { bgcolor: "#e0e0e0" },
-            }}
-          >
-            <ListItemText primary={link.name} secondary={link.desc} slotProps={{ secondary: { fontSize: 12, color: "#999" } }} />
-          </List>
-        ))}
+        <List>
+          {menuLinks.map((link) => (
+            <ListItemText
+              primary={link.name}
+              secondary={link.desc}
+              slotProps={{ secondary: { fontSize: 12, color: "#999" } }}
+              key={link.path}
+              onClick={() => handleClickLink(link.path)}
+              sx={{
+                cursor: "pointer",
+                m: 0,
+                px: 2,
+                py: 1,
+                bgcolor: router.pathname == link.path ? "#f0f0f0" : "#fff",
+                "&:hover": { bgcolor: "#e0e0e0" },
+              }}
+            /> 
+          ))}
+        </List>
+        <Divider />
+        <List>
+          {platforms.map((link) => (
+            <OutboundLink href={link.url}>
+              <ListItemButton
+                key={link.url}
+                sx={{
+                  cursor: "pointer",
+                  px: 2,
+                  "&:hover": { bgcolor: "#e0e0e0" },
+                }}
+              >
+                <ListItemIcon>{link.icon}</ListItemIcon>
+                <ListItemText primary={link.label} />
+              </ListItemButton>
+            </OutboundLink>
+          ))}
+        </List>
       </Drawer>
       <Box>
         {children}
