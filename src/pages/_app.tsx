@@ -87,6 +87,10 @@ const menuLinks = [
   { name: "#てぃみ式 コードエディタ", path: "/tools/chord_editor", desc: "独自の音楽理論「#てぃみ式」を基にコードの情報を入力して再生したり解析したりできるツール" },
 ];
 
+const outboundLinks = [
+  { name: "つぃみぐの", url: "https://hyayum.github.io/tsimiguno/", desc: "機械学習を利用して効率的にペユドチできるようにしたツール" },
+];
+
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -131,6 +135,22 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                 "&:hover": { bgcolor: "#e0e0e0" },
               }}
             /> 
+          ))}
+          {outboundLinks.map((link) => (
+            <OutboundLink href={link.url} key={link.url}>
+              <ListItemText
+                primary={link.name}
+                secondary={link.desc}
+                slotProps={{ secondary: { fontSize: 12, color: "#999" } }}
+                sx={{
+                  cursor: "pointer",
+                  m: 0,
+                  px: 2,
+                  py: 1,
+                  "&:hover": { bgcolor: "#e0e0e0" },
+                }}
+              />
+            </OutboundLink>
           ))}
         </List>
         <Divider />
