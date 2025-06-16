@@ -16,7 +16,7 @@ import { useMusicList } from "@/hook/useMusicList";
 import { MusicDbData, MusicPostData, defaultMusicDbData } from "@/music/model";
 import NumberField from "@/component/NumberField";
 
-const TOKEN_URL = "https://gettoken-oxiwlrzn6q-an.a.run.app";
+// const TOKEN_URL = "https://gettoken-oxiwlrzn6q-an.a.run.app";
 
 const Fyunetdjan = () => {
   const [apiData, setApiData] = useState({ token: "", url: "" });
@@ -33,6 +33,7 @@ const Fyunetdjan = () => {
     backgroundColor: "#fff",
   };
 
+  /*
   const getUrl = async () => {
     const token = localStorage.getItem("token");
     if (!token) return;
@@ -127,6 +128,7 @@ const Fyunetdjan = () => {
     }
     setLoading(false);
   };
+  */
 
   return (
     <Box sx={{ p: 5, minWidth: 800 }}>
@@ -162,7 +164,7 @@ const Fyunetdjan = () => {
               fontSize: 40,
               color: "#ff3366",
             }}
-            onClick={onSubmit}
+            // onClick={onSubmit}
           >
             にぇ
           </button>
@@ -182,7 +184,7 @@ const Fyunetdjan = () => {
             ))}
           </List>
         </Box>
-      ) : (
+      ) : (/*
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <Button onClick={() => setEditId(0)} variant="outlined" size="small">戻る</Button>
           <Box sx={{ display: "flex" }}>
@@ -213,7 +215,7 @@ const Fyunetdjan = () => {
           <Typography variant="body2">/-mk--【Aメロ】-/ /-vc--●◆-/ /-rb--(そら)-/ /-rb--()-/</Typography>
           <Button onClick={updateMusicData} size="large" variant="contained">送信</Button>
         </Box>
-      )}
+      */<></>)}
       <Backdrop open={loading}>
         <CircularProgress sx={{ color: "white" }} />
       </Backdrop>
