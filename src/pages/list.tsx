@@ -26,6 +26,8 @@ const getBgColor = (tag: string[]) => {
     return "#fff0e8";
   } else if (tag.includes("ボカロ(広義)")) {
     return "#e8fcff";
+  } else if (tag.includes("原神")) {
+    return "#fff8e8";
   } else {
     return "#e8fff4";
   }
