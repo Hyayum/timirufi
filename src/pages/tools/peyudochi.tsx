@@ -24,6 +24,7 @@ type LetterOption = {
   notFirst?: boolean;
   notLast?: boolean;
   notAfter?: string[];
+  minor?: boolean;
 };
 
 const vowelMap = [
@@ -50,17 +51,17 @@ const defaultOptions: LetterOption[] = [
   { letter: "うぉ", weight: 3, afterN: 1, notAfter: ["っ"] },
   { letter: "は", weight: 10, afterN: 3, notAfter: ["っ"] },
   { letter: "ひ", weight: 8, afterN: 3, notAfter: ["っ"] },
-  { letter: "ほぅ", weight: 2, afterN: 2, notAfter: ["っ"] },
+  { letter: "ほぅ", weight: 2, afterN: 2, notAfter: ["っ"], minor: true },
   { letter: "へ", weight: 4, afterN: 2, notAfter: ["っ"] },
   { letter: "ほ", weight: 4, afterN: 2, notAfter: ["っ"] },
   { letter: "ひゃ", weight: 1, afterN: 1, notAfter: ["っ"] },
   { letter: "ひゅ", weight: 1, afterN: 1, notAfter: ["っ"] },
   { letter: "ひぇ", weight: 1, afterN: 1, notAfter: ["っ"] },
   { letter: "ひょ", weight: 1, afterN: 1, notAfter: ["っ"] },
-  { letter: "ほぁ", weight: 0.5, afterN: 0.5, notAfter: ["っ"] },
-  { letter: "ほぃ", weight: 0.5, afterN: 0.5, notAfter: ["っ"] },
-  { letter: "ほぇ", weight: 0.5, afterN: 0.5, notAfter: ["っ"] },
-  { letter: "ほぅぉ", weight: 0.5, afterN: 0.5, notAfter: ["っ"] },
+  { letter: "ほぁ", weight: 0.5, afterN: 0.5, notAfter: ["っ"], minor: true },
+  { letter: "ほぃ", weight: 0.5, afterN: 0.5, notAfter: ["っ"], minor: true },
+  { letter: "ほぇ", weight: 0.5, afterN: 0.5, notAfter: ["っ"], minor: true },
+  { letter: "ほぅぉ", weight: 0.5, afterN: 0.5, notAfter: ["っ"], minor: true },
   { letter: "か", weight: 10 },
   { letter: "き", weight: 7 },
   { letter: "く", weight: 10 },
@@ -68,7 +69,7 @@ const defaultOptions: LetterOption[] = [
   { letter: "こ", weight: 6 },
   { letter: "きゃ", weight: 1 },
   { letter: "きゅ", weight: 1 },
-  { letter: "きぇ", weight: 1 },
+  { letter: "きぇ", weight: 1, minor: true },
   { letter: "きょ", weight: 1 },
   { letter: "くぁ", weight: 1 },
   { letter: "くぃ", weight: 1 },
@@ -81,7 +82,7 @@ const defaultOptions: LetterOption[] = [
   { letter: "ご", weight: 3, afterTu: 2 },
   { letter: "ぎゃ", weight: 1, afterTu: 1 },
   { letter: "ぎゅ", weight: 1, afterTu: 1 },
-  { letter: "ぎぇ", weight: 1, afterTu: 1 },
+  { letter: "ぎぇ", weight: 1, afterTu: 1, minor: true },
   { letter: "ぎょ", weight: 1, afterTu: 1 },
   { letter: "ぐぁ", weight: 1, afterTu: 1 },
   { letter: "ぐぃ", weight: 1, afterTu: 1 },
@@ -94,12 +95,12 @@ const defaultOptions: LetterOption[] = [
   { letter: "ぽ", weight: 4 },
   { letter: "ぴゃ", weight: 1 },
   { letter: "ぴゅ", weight: 1 },
-  { letter: "ぴぇ", weight: 0.5 },
+  { letter: "ぴぇ", weight: 0.5, minor: true },
   { letter: "ぴょ", weight: 1 },
-  { letter: "ぷぁ", weight: 0.5 },
-  { letter: "ぷぃ", weight: 0.5 },
-  { letter: "ぷぇ", weight: 0.5 },
-  { letter: "ぷぉ", weight: 0.5 },
+  { letter: "ぷぁ", weight: 0.5, minor: true },
+  { letter: "ぷぃ", weight: 0.5, minor: true },
+  { letter: "ぷぇ", weight: 0.5, minor: true },
+  { letter: "ぷぉ", weight: 0.5, minor: true },
   { letter: "ば", weight: 4, afterTu: 3 },
   { letter: "び", weight: 4, afterTu: 3 },
   { letter: "ぶ", weight: 3, afterTu: 3 },
@@ -107,130 +108,130 @@ const defaultOptions: LetterOption[] = [
   { letter: "ぼ", weight: 3, afterTu: 2 },
   { letter: "びゃ", weight: 1, afterTu: 1 },
   { letter: "びゅ", weight: 1, afterTu: 1 },
-  { letter: "びぇ", weight: 0.5, afterTu: 0.5 },
+  { letter: "びぇ", weight: 0.5, afterTu: 0.5, minor: true },
   { letter: "びょ", weight: 1, afterTu: 1 },
-  { letter: "ぶぁ", weight: 0.5, afterTu: 0.5 },
-  { letter: "ぶぃ", weight: 0.5, afterTu: 0.5 },
-  { letter: "ぶぇ", weight: 0.5, afterTu: 0.5 },
-  { letter: "ぶぉ", weight: 0.5, afterTu: 0.5 },
+  { letter: "ぶぁ", weight: 0.5, afterTu: 0.5, minor: true },
+  { letter: "ぶぃ", weight: 0.5, afterTu: 0.5, minor: true },
+  { letter: "ぶぇ", weight: 0.5, afterTu: 0.5, minor: true },
+  { letter: "ぶぉ", weight: 0.5, afterTu: 0.5, minor: true },
   { letter: "た", weight: 6 },
   { letter: "てぃ", weight: 8 },
   { letter: "とぅ", weight: 7 },
   { letter: "て", weight: 5 },
   { letter: "と", weight: 5 },
-  { letter: "てゃ", weight: 0.5 },
+  { letter: "てゃ", weight: 0.5, minor: true },
   { letter: "てゅ", weight: 1 },
-  { letter: "てぃぇ", weight: 0.5 },
-  { letter: "てょ", weight: 0.5 },
-  { letter: "とぁ", weight: 0.5 },
-  { letter: "とぃ", weight: 0.5 },
-  { letter: "とぇ", weight: 0.5 },
-  { letter: "とぅぉ", weight: 0.5 },
+  { letter: "てぃぇ", weight: 0.5, minor: true },
+  { letter: "てょ", weight: 0.5, minor: true },
+  { letter: "とぁ", weight: 0.5, minor: true },
+  { letter: "とぃ", weight: 0.5, minor: true },
+  { letter: "とぇ", weight: 0.5, minor: true },
+  { letter: "とぅぉ", weight: 0.5, minor: true },
   { letter: "だ", weight: 5, afterTu: 2 },
   { letter: "でぃ", weight: 6, afterTu: 2 },
   { letter: "どぅ", weight: 5, afterTu: 2 },
   { letter: "で", weight: 5, afterTu: 2 },
   { letter: "ど", weight: 5, afterTu: 2 },
-  { letter: "でゃ", weight: 0.5, afterTu: 0.5 },
+  { letter: "でゃ", weight: 0.5, afterTu: 0.5, minor: true },
   { letter: "でゅ", weight: 1, afterTu: 1 },
-  { letter: "でぃぇ", weight: 0.5, afterTu: 0.5 },
-  { letter: "でょ", weight: 0.5, afterTu: 0.5 },
-  { letter: "どぁ", weight: 0.5, afterTu: 0.5 },
-  { letter: "どぃ", weight: 0.5, afterTu: 0.5 },
-  { letter: "どぇ", weight: 0.5, afterTu: 0.5 },
-  { letter: "どぅぉ", weight: 0.5, afterTu: 0.5 },
+  { letter: "でぃぇ", weight: 0.5, afterTu: 0.5, minor: true },
+  { letter: "でょ", weight: 0.5, afterTu: 0.5, minor: true },
+  { letter: "どぁ", weight: 0.5, afterTu: 0.5, minor: true },
+  { letter: "どぃ", weight: 0.5, afterTu: 0.5, minor: true },
+  { letter: "どぇ", weight: 0.5, afterTu: 0.5, minor: true },
+  { letter: "どぅぉ", weight: 0.5, afterTu: 0.5, minor: true },
   { letter: "さ", weight: 10 },
   { letter: "すぃ", weight: 8 },
   { letter: "す", weight: 12 },
   { letter: "せ", weight: 6 },
   { letter: "そ", weight: 6 },
-  { letter: "すゃ", weight: 0.5 },
-  { letter: "すゅ", weight: 1 },
-  { letter: "すぃぇ", weight: 0.5 },
-  { letter: "すょ", weight: 0.5 },
-  { letter: "すぁ", weight: 0.5 },
-  { letter: "すぅぃ", weight: 0.5 },
-  { letter: "すぇ", weight: 0.5 },
-  { letter: "すぉ", weight: 0.5 },
+  { letter: "すゃ", weight: 0.5, minor: true },
+  { letter: "すゅ", weight: 1, minor: true },
+  { letter: "すぃぇ", weight: 0.5, minor: true },
+  { letter: "すょ", weight: 0.5, minor: true },
+  { letter: "すぁ", weight: 0.5, minor: true },
+  { letter: "すぅぃ", weight: 0.5, minor: true },
+  { letter: "すぇ", weight: 0.5, minor: true },
+  { letter: "すぉ", weight: 0.5, minor: true },
   { letter: "ざ", weight: 5, afterTu: 1 },
   { letter: "ずぃ", weight: 6, afterTu: 1 },
   { letter: "ず", weight: 7, afterTu: 1 },
   { letter: "ぜ", weight: 5, afterTu: 1 },
   { letter: "ぞ", weight: 5, afterTu: 1 },
-  { letter: "ずゃ", weight: 0.5, afterTu: 0.5 },
-  { letter: "ずゅ", weight: 1, afterTu: 1 },
-  { letter: "ずぃぇ", weight: 0.5, afterTu: 0.5 },
-  { letter: "ずょ", weight: 0.5, afterTu: 0.5 },
-  { letter: "ずぁ", weight: 0.5, afterTu: 0.5 },
-  { letter: "ずぅぃ", weight: 0.5, afterTu: 0.5 },
-  { letter: "ずぇ", weight: 0.5, afterTu: 0.5 },
-  { letter: "ずぉ", weight: 0.5, afterTu: 0.5 },
+  { letter: "ずゃ", weight: 0.5, afterTu: 0.5, minor: true },
+  { letter: "ずゅ", weight: 1, afterTu: 1, minor: true },
+  { letter: "ずぃぇ", weight: 0.5, afterTu: 0.5, minor: true },
+  { letter: "ずょ", weight: 0.5, afterTu: 0.5, minor: true },
+  { letter: "ずぁ", weight: 0.5, afterTu: 0.5, minor: true },
+  { letter: "ずぅぃ", weight: 0.5, afterTu: 0.5, minor: true },
+  { letter: "ずぇ", weight: 0.5, afterTu: 0.5, minor: true },
+  { letter: "ずぉ", weight: 0.5, afterTu: 0.5, minor: true },
   { letter: "つぁ", weight: 3 },
   { letter: "つぃ", weight: 3 },
   { letter: "つ", weight: 2 },
   { letter: "つぇ", weight: 2 },
   { letter: "つぉ", weight: 2 },
-  { letter: "つゃ", weight: 0.5 },
-  { letter: "つゅ", weight: 1 },
-  { letter: "つぃぇ", weight: 0.5 },
-  { letter: "つょ", weight: 0.5 },
-  { letter: "つぅぁ", weight: 0.5 },
-  { letter: "つぅぃ", weight: 0.5 },
-  { letter: "つぅぇ", weight: 0.5 },
-  { letter: "つぅぉ", weight: 0.5 },
+  { letter: "つゃ", weight: 0.5, minor: true },
+  { letter: "つゅ", weight: 1, minor: true },
+  { letter: "つぃぇ", weight: 0.5, minor: true },
+  { letter: "つょ", weight: 0.5, minor: true },
+  { letter: "つぅぁ", weight: 0.5, minor: true },
+  { letter: "つぅぃ", weight: 0.5, minor: true },
+  { letter: "つぅぇ", weight: 0.5, minor: true },
+  { letter: "つぅぉ", weight: 0.5, minor: true },
   { letter: "しゃ", weight: 3 },
   { letter: "し", weight: 3 },
   { letter: "しゅ", weight: 3 },
   { letter: "しぇ", weight: 3 },
   { letter: "しょ", weight: 3 },
-  { letter: "しゅぁ", weight: 0.5 },
-  { letter: "しゅぃ", weight: 0.5 },
-  { letter: "しゅぇ", weight: 0.5 },
-  { letter: "しゅぉ", weight: 0.5 },
+  { letter: "しゅぁ", weight: 0.5, minor: true },
+  { letter: "しゅぃ", weight: 0.5, minor: true },
+  { letter: "しゅぇ", weight: 0.5, minor: true },
+  { letter: "しゅぉ", weight: 0.5, minor: true },
   { letter: "じゃ", weight: 3, afterTu: 1 },
   { letter: "じ", weight: 3, afterTu: 1 },
   { letter: "じゅ", weight: 4, afterTu: 1 },
   { letter: "じぇ", weight: 3, afterTu: 1 },
   { letter: "じょ", weight: 3, afterTu: 1 },
-  { letter: "じゅぁ", weight: 0.5 },
-  { letter: "じゅぃ", weight: 0.5 },
-  { letter: "じゅぇ", weight: 0.5 },
-  { letter: "じゅぉ", weight: 0.5 },
+  { letter: "じゅぁ", weight: 0.5, minor: true },
+  { letter: "じゅぃ", weight: 0.5, minor: true },
+  { letter: "じゅぇ", weight: 0.5, minor: true },
+  { letter: "じゅぉ", weight: 0.5, minor: true },
   { letter: "ちゃ", weight: 4 },
   { letter: "ち", weight: 5 },
   { letter: "ちゅ", weight: 4 },
   { letter: "ちぇ", weight: 4 },
   { letter: "ちょ", weight: 4 },
-  { letter: "ちゅぁ", weight: 0.5 },
-  { letter: "ちゅぃ", weight: 0.5 },
-  { letter: "ちゅぇ", weight: 0.5 },
-  { letter: "ちゅぉ", weight: 0.5 },
+  { letter: "ちゅぁ", weight: 0.5, minor: true },
+  { letter: "ちゅぃ", weight: 0.5, minor: true },
+  { letter: "ちゅぇ", weight: 0.5, minor: true },
+  { letter: "ちゅぉ", weight: 0.5, minor: true },
   { letter: "ふぁ", weight: 4 },
   { letter: "ふぃ", weight: 4 },
   { letter: "ふ", weight: 8 },
   { letter: "ふぇ", weight: 4 },
   { letter: "ふぉ", weight: 4 },
-  { letter: "ふゃ", weight: 1 },
+  { letter: "ふゃ", weight: 1, minor: true },
   { letter: "ふゅ", weight: 1 },
-  { letter: "ふぃぇ", weight: 0.5 },
-  { letter: "ふょ", weight: 1 },
-  { letter: "ふぅぁ", weight: 0.5 },
-  { letter: "ふぅぃ", weight: 0.5 },
-  { letter: "ふぅぇ", weight: 0.5 },
-  { letter: "ふぅぉ", weight: 0.5 },
+  { letter: "ふぃぇ", weight: 0.5, minor: true },
+  { letter: "ふょ", weight: 1, minor: true },
+  { letter: "ふぅぁ", weight: 0.5, minor: true },
+  { letter: "ふぅぃ", weight: 0.5, minor: true },
+  { letter: "ふぅぇ", weight: 0.5, minor: true },
+  { letter: "ふぅぉ", weight: 0.5, minor: true },
   { letter: "ゔぁ", weight: 2, afterTu: 1 },
   { letter: "ゔぃ", weight: 2, afterTu: 1 },
   { letter: "ゔ", weight: 4, afterTu: 1 },
   { letter: "ゔぇ", weight: 2, afterTu: 1 },
   { letter: "ゔぉ", weight: 2, afterTu: 1 },
-  { letter: "ゔゃ", weight: 1, afterTu: 1 },
+  { letter: "ゔゃ", weight: 1, afterTu: 1, minor: true },
   { letter: "ゔゅ", weight: 1, afterTu: 1 },
-  { letter: "ゔぃぇ", weight: 0.5, afterTu: 0.5 },
-  { letter: "ゔょ", weight: 1, afterTu: 1 },
-  { letter: "ゔぅぁ", weight: 0.5, afterTu: 0.5 },
-  { letter: "ゔぅぃ", weight: 0.5, afterTu: 0.5 },
-  { letter: "ゔぅぇ", weight: 0.5, afterTu: 0.5 },
-  { letter: "ゔぅぉ", weight: 0.5, afterTu: 0.5 },
+  { letter: "ゔぃぇ", weight: 0.5, afterTu: 0.5, minor: true },
+  { letter: "ゔょ", weight: 1, afterTu: 1, minor: true },
+  { letter: "ゔぅぁ", weight: 0.5, afterTu: 0.5, minor: true },
+  { letter: "ゔぅぃ", weight: 0.5, afterTu: 0.5, minor: true },
+  { letter: "ゔぅぇ", weight: 0.5, afterTu: 0.5, minor: true },
+  { letter: "ゔぅぉ", weight: 0.5, afterTu: 0.5, minor: true },
   { letter: "な", weight: 10, notAfter: ["っ"] },
   { letter: "に", weight: 7, notAfter: ["っ"] },
   { letter: "ぬ", weight: 6, notAfter: ["っ"] },
@@ -240,10 +241,10 @@ const defaultOptions: LetterOption[] = [
   { letter: "にゅ", weight: 1, notAfter: ["っ"] },
   { letter: "にぇ", weight: 1, notAfter: ["っ"] },
   { letter: "にょ", weight: 1, notAfter: ["っ"] },
-  { letter: "ぬぁ", weight: 0.5, notAfter: ["っ"] },
-  { letter: "ぬぃ", weight: 0.5, notAfter: ["っ"] },
-  { letter: "ぬぇ", weight: 0.5, notAfter: ["っ"] },
-  { letter: "ぬぉ", weight: 0.5, notAfter: ["っ"] },
+  { letter: "ぬぁ", weight: 0.5, notAfter: ["っ"], minor: true },
+  { letter: "ぬぃ", weight: 0.5, notAfter: ["っ"], minor: true },
+  { letter: "ぬぇ", weight: 0.5, notAfter: ["っ"], minor: true },
+  { letter: "ぬぉ", weight: 0.5, notAfter: ["っ"], minor: true },
   { letter: "ま", weight: 6, notAfter: ["っ"] },
   { letter: "み", weight: 7, notAfter: ["っ"] },
   { letter: "む", weight: 6, notAfter: ["っ"] },
@@ -253,10 +254,10 @@ const defaultOptions: LetterOption[] = [
   { letter: "みゅ", weight: 1, notAfter: ["っ"] },
   { letter: "みぇ", weight: 1, notAfter: ["っ"] },
   { letter: "みょ", weight: 1, notAfter: ["っ"] },
-  { letter: "むぁ", weight: 0.5, notAfter: ["っ"] },
-  { letter: "むぃ", weight: 0.5, notAfter: ["っ"] },
-  { letter: "むぇ", weight: 0.5, notAfter: ["っ"] },
-  { letter: "むぉ", weight: 0.5, notAfter: ["っ"] },
+  { letter: "むぁ", weight: 0.5, notAfter: ["っ"], minor: true },
+  { letter: "むぃ", weight: 0.5, notAfter: ["っ"], minor: true },
+  { letter: "むぇ", weight: 0.5, notAfter: ["っ"], minor: true },
+  { letter: "むぉ", weight: 0.5, notAfter: ["っ"], minor: true },
   { letter: "ら", weight: 10, notAfter: ["っ"] },
   { letter: "り", weight: 8, notAfter: ["っ"] },
   { letter: "る", weight: 14, notAfter: ["っ"] },
@@ -264,12 +265,12 @@ const defaultOptions: LetterOption[] = [
   { letter: "ろ", weight: 7, notAfter: ["っ"] },
   { letter: "りゃ", weight: 1, notAfter: ["っ"] },
   { letter: "りゅ", weight: 1, notAfter: ["っ"] },
-  { letter: "りぇ", weight: 1, notAfter: ["っ"] },
+  { letter: "りぇ", weight: 1, notAfter: ["っ"], minor: true },
   { letter: "りょ", weight: 1, notAfter: ["っ"] },
-  { letter: "るぁ", weight: 0.5, notAfter: ["っ"] },
-  { letter: "るぃ", weight: 0.5, notAfter: ["っ"] },
-  { letter: "るぇ", weight: 0.5, notAfter: ["っ"] },
-  { letter: "るぉ", weight: 0.5, notAfter: ["っ"] },
+  { letter: "るぁ", weight: 0.5, notAfter: ["っ"], minor: true },
+  { letter: "るぃ", weight: 0.5, notAfter: ["っ"], minor: true },
+  { letter: "るぇ", weight: 0.5, notAfter: ["っ"], minor: true },
+  { letter: "るぉ", weight: 0.5, notAfter: ["っ"], minor: true },
   { letter: "っ", weight: 34, notAfter: ["っ", "ん", "ー"], notFirst: true, notLast: true },
   { letter: "ん", weight: 30, notAfter: ["っ", "ん"], notFirst: true },
   { letter: "ー", weight: 16, notAfter: ["っ", "ん", "ー"], notFirst: true },
@@ -305,11 +306,12 @@ const KATA = "アイウエオァィゥェォヴカキクケコガギグゲゴサ
 
 export default function Peyudochi() {
   const [options, setOptions] = useState(defaultOptions);
-  const [result, setResult] = useState<string[]>([]);
+  const [result, setResult] = useState<{ hiragana: string, katakana: string }[]>([]);
   const [letters, setLetters] = useState(8);
   const [outputs, setOutputs] = useState(100);
   const [katakana, setKatakana] = useState(false);
   const [share, setShare] = useState("");
+  const [easyMode, setEasyMode] = useState(false);
   
   const changeOption = (letter: string, weight: number) => {
     const index = options.findIndex((opt) => opt.letter == letter);
@@ -317,10 +319,11 @@ export default function Peyudochi() {
     setOptions([...options]);
   };
 
-  const makeLetterList = (prev: string, isFirst: boolean, isLast: boolean ) => {
+  const makeLetterList = (prev: string, isFirst: boolean, isLast: boolean, easyMode: boolean) => {
     const letterList = [];
     for (const opt of options) {
       const notAfter = opt.notAfter && opt.notAfter.includes("～") ? [...opt.notAfter, "ぁ", "ぃ", "ぅ", "ぇ", "ぉ"] : opt.notAfter;
+      if (easyMode && opt.minor) continue;
       if (notAfter && notAfter.includes(prev)) continue;
       if (isFirst && opt.notFirst) continue;
       if (isLast && opt.notLast) continue;
@@ -334,20 +337,20 @@ export default function Peyudochi() {
   };
 
   const peyudochi = () => {
-    const results = [];
+    const results: { hiragana: string, katakana: string }[] = [];
     for (let i = 0; i < outputs; i++) {
       let prevLetter = "";
       const res = [];
       for (let j = 0; j < letters; j++) {
-        const letterList = makeLetterList(prevLetter, j == 0, j == letters - 1);
+        const letterList = makeLetterList(prevLetter, j == 0, j == letters - 1, easyMode);
         const pickedLetter = randomPick(letterList);
         const letter = prevLetter == "っ" ? replaceLetters(pickedLetter, ZA_ROW, DZA_ROW) : 
                        pickedLetter == "～" ? getSmallVowel(prevLetter) : pickedLetter;
         prevLetter = letter;
         res.push(letter);
       }
-      const resStr = katakana ? replaceLetters(res.join(""), HIRA, KATA) : res.join("");
-      results.push(resStr);
+      const hiragana = res.join("");
+      results.push({ hiragana, katakana: replaceLetters(hiragana, HIRA, KATA) });
     }
     setResult(results);
   };
@@ -414,6 +417,14 @@ export default function Peyudochi() {
             label="片仮名で出力"
           />
         </FormGroup>
+        <FormGroup sx={{ ml: 1 }}>
+          <FormControlLabel
+            control={
+              <Checkbox checked={easyMode} onClick={() => setEasyMode(!easyMode)} />
+            }
+            label="簡単ペユドチ（マイナーな発音を除外）"
+          />
+        </FormGroup>
       </Grid>
       <Grid size={12}>
         <Button
@@ -432,8 +443,8 @@ export default function Peyudochi() {
         <Grid container spacing={2}>
           {result.map((res, i) => (
             <Grid size={{ xs: 4, sm: 3, lg: 2 }} key={i}>
-              <Typography variant="body1" onClick={() => setShare(res)}>
-                {res}
+              <Typography variant="body1" onClick={() => setShare(katakana ? res.katakana : res.hiragana)}>
+                {katakana ? res.katakana : res.hiragana}
               </Typography>
             </Grid>
           ))}
