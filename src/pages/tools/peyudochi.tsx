@@ -12,6 +12,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { keyframes } from "@mui/system";
 import Link from "next/link";
 import OutBoundLink from "@/component/OutboundLink";
 import NumberField from "@/component/NumberField";
@@ -308,7 +309,7 @@ export default function Peyudochi() {
   const [options, setOptions] = useState(defaultOptions);
   const [result, setResult] = useState<{ hiragana: string, katakana: string }[]>([]);
   const [letters, setLetters] = useState(8);
-  const [outputs, setOutputs] = useState(100);
+  const [outputs, setOutputs] = useState(60);
   const [katakana, setKatakana] = useState(false);
   const [share, setShare] = useState("");
   const [easyMode, setEasyMode] = useState(false);
@@ -355,8 +356,23 @@ export default function Peyudochi() {
     setResult(results);
   };
   
-  const shareText = `${share}${"\n"}#だれでもペユドチ${"\n"}https://hyayum.github.io/kunerei/peyudochi`;
+  const shareText = `${share}${"\n"}#だれでもペユドチ${"\n"}https://hyayum.github.io/timirufi/peyudochi`;
   const shareQuery = new URLSearchParams({ text: shareText });
+
+  const rainbowColorString = (hover: boolean) => {
+    const light = hover ? "ff" : "ee";
+    const dark = hover ? "88" : "66";
+    const gradation = Array.from({ length: 2 + 1 }).join(`#${light}${dark}${dark}, #${light}${light}${dark}, #${dark}${light}${dark}, #${dark}${light}${light}, #${dark}${dark}${light}, #${light}${dark}${light}, `) + `#${light}${dark}${dark}`
+    return `linear-gradient(45deg, ${gradation})`;
+  };
+  const rainbowKeyframe = keyframes`
+    0%   { background-position: 0% 100%; }
+    100% { background-position: 100% 0%; }
+  `;
+  const animationProps = {
+    backgroundSize: "200% 200%",
+    animation: `${rainbowKeyframe} 1.5s linear infinite`,
+  };
 
   return (
     <Grid container spacing={5} sx={{ p: 5, pb: 20, minWidth: 800 }}>
@@ -368,88 +384,107 @@ export default function Peyudochi() {
       <Grid size={12}>
         <Accordion sx={{ mb: 1 }}>
           <AccordionSummary id="options">
-            確率の設定 (基礎確率のみ)
+            確率の設定
           </AccordionSummary>
-          <AccordionDetails sx={{ display: "flex" }}>
-            <Grid container spacing={1}>
-            {options.map((opt) => (
-              <Grid size={{ xs: 2, md: 1.5, lg: 1, xl: 0.75 }} key={opt.letter}>
-                <NumberField
-                  label={opt.letter == "～" ? "小文字母音" : opt.letter}
-                  value={opt.weight}
-                  variant="outlined"
-                  size="small"
-                  onChange={(e) => changeOption(opt.letter, Math.max(Number(e.target.value), 0))}
-                  fullWidth
-                />
-              </Grid>
-            ))}
+          <AccordionDetails>
+            <Typography variant="body2" sx={{ mb: 3 }}>基礎確率のみ、0.5単位</Typography>
+            <Grid container spacing={1} sx={{ display: "flex" }}>
+              {options.map((opt) => (
+                <Grid size={{ xs: 2, md: 1.5, lg: 1, xl: 0.75 }} key={opt.letter}>
+                  <NumberField
+                    label={opt.letter == "～" ? "小文字母音" : opt.letter}
+                    value={opt.weight}
+                    variant="outlined"
+                    size="small"
+                    onChange={(e) => changeOption(opt.letter, Math.max(Number(e.target.value), 0))}
+                    fullWidth
+                  />
+                </Grid>
+              ))}
             </Grid>
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid size={12} sx={{ display: "flex" }}>
-        <Box sx={{ width: 150 }}>
-          <NumberField
-            label="1ブロックの文字数"
-            value={letters}
-            variant="outlined"
-            size="small"
-            onChange={(e) => setLetters(Math.max(Number(e.target.value), 0))}
-            fullWidth
-          />
+      <Grid size={12} sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+        <Box sx={{display: "flex"}}>
+          <Box sx={{ width: 150 }}>
+            <NumberField
+              label="1ブロックの文字数"
+              value={letters}
+              variant="outlined"
+              size="small"
+              onChange={(e) => setLetters(Math.max(Number(e.target.value), 0))}
+              fullWidth
+            />
+          </Box>
+          <Box sx={{ width: 150 }}>
+            <NumberField
+              label="出力数"
+              value={outputs}
+              variant="outlined"
+              size="small"
+              onChange={(e) => setOutputs(Math.max(Number(e.target.value), 0))}
+              fullWidth
+            />
+          </Box>
         </Box>
-        <Box sx={{ width: 150 }}>
-          <NumberField
-            label="出力数"
-            value={outputs}
-            variant="outlined"
-            size="small"
-            onChange={(e) => setOutputs(Math.max(Number(e.target.value), 0))}
-            fullWidth
-          />
+        <Box sx={{display: "flex"}}>
+          <FormGroup sx={{ ml: 1 }}>
+            <FormControlLabel
+              control={
+                <Checkbox checked={katakana} onClick={() => setKatakana(!katakana)} />
+              }
+              label="片仮名で表示"
+            />
+          </FormGroup>
+          <FormGroup sx={{ ml: 1 }}>
+            <FormControlLabel
+              control={
+                <Checkbox checked={easyMode} onClick={() => setEasyMode(!easyMode)} />
+              }
+              label="簡単ペユドチ（一般的な音のみ）"
+            />
+          </FormGroup>
         </Box>
-        <FormGroup sx={{ ml: 1 }}>
-          <FormControlLabel
-            control={
-              <Checkbox checked={katakana} onClick={() => setKatakana(!katakana)} />
-            }
-            label="片仮名で出力"
-          />
-        </FormGroup>
-        <FormGroup sx={{ ml: 1 }}>
-          <FormControlLabel
-            control={
-              <Checkbox checked={easyMode} onClick={() => setEasyMode(!easyMode)} />
-            }
-            label="簡単ペユドチ（マイナーな発音を除外）"
-          />
-        </FormGroup>
       </Grid>
-      <Grid size={12}>
+      <Grid size={12} sx={{ display: "flex", justifyContent: "center" }}>
         <Button
           variant="contained"
           size="large"
           color="success"
           onClick={peyudochi}
+          sx={{
+            width: 320,
+            height: 80,
+            fontSize: 40,
+            background: rainbowColorString(false),
+            "&:hover": { background: rainbowColorString(true), ...animationProps },
+            ...animationProps,
+          }}
         >
           ペユドチ
         </Button>
       </Grid>
       <Grid size={12}>
-        <Typography variant="h5" sx={{ mb: 1 }}>
+        <Typography variant="h5" sx={{ mb: 2 }}>
           結果
         </Typography>
-        <Grid container spacing={2}>
-          {result.map((res, i) => (
+        <Grid container spacing={1.5}>
+          {result.length > 0 ? result.map((res, i) => (
             <Grid size={{ xs: 4, sm: 3, lg: 2 }} key={i}>
               <Typography variant="body1" onClick={() => setShare(katakana ? res.katakana : res.hiragana)}>
                 {katakana ? res.katakana : res.hiragana}
               </Typography>
             </Grid>
-          ))}
+          )) : (
+            <Typography variant="body1" sx={{ color: "#888", height: 300 }}>
+              上の「ペユドチ」ボタンをクリック！
+            </Typography>
+          )}
         </Grid>
       </Grid>
+
+      {/*
       <Grid size={12}>
         <Typography variant="body1" sx={{ mb: 1 }}>
           気に入った単語をクリックしてシェア！少しいじってもOK！
@@ -470,6 +505,18 @@ export default function Peyudochi() {
             </Button>
           </OutBoundLink>
         </Box>
+      </Grid>
+      */}
+
+      <Grid size={12}>
+        <Typography variant="h6" sx={{ mb: 1 }}>
+          ペユドチとは？
+        </Typography>
+        <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
+          ランダムに文字列を生成してその中からいい感じの部分を拾ってオリジナルの単語を作るツールです。{"\n"}
+          <span style={{ textDecoration: "underline" }}><OutBoundLink href="http://www.nicovideo.jp/watch/sm39674066">「フュネッヂャンってペユドチですよね」</OutBoundLink></span>という曲で思いっきりこの方法を使ったのと、毎回「ランダムに文字列生成して単語作るやつ」って言うのもめんどいので「ペユドチ」という言い方になりました。{"\n"}
+          詳しいことは<span style={{ textDecoration: "underline" }}><OutBoundLink href="https://note.com/timireno/n/n07602604dacb">こちら(note)</OutBoundLink></span>
+        </Typography>
       </Grid>
     </Grid>
   );
