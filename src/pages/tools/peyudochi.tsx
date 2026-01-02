@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Accordion,
   AccordionDetails,
@@ -313,6 +313,10 @@ export default function Peyudochi() {
   const [katakana, setKatakana] = useState(false);
   const [share, setShare] = useState("");
   const [easyMode, setEasyMode] = useState(false);
+
+  useEffect(() => {
+    document.title = "ペユドチ生成機";
+  }, []);
   
   const changeOption = (letter: string, weight: number) => {
     const index = options.findIndex((opt) => opt.letter == letter);
@@ -387,7 +391,7 @@ export default function Peyudochi() {
             確率の設定
           </AccordionSummary>
           <AccordionDetails>
-            <Typography variant="body2" sx={{ mb: 3 }}>基礎確率のみ、0.5単位</Typography>
+            <Typography variant="body2" sx={{ mb: 3 }}>文字(音)ごとの確率の比重を0.5単位で設定できます</Typography>
             <Grid container spacing={1} sx={{ display: "flex" }}>
               {options.map((opt) => (
                 <Grid size={{ xs: 2, md: 1.5, lg: 1, xl: 0.75 }} key={opt.letter}>
@@ -514,6 +518,7 @@ export default function Peyudochi() {
         </Typography>
         <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
           ランダムに文字列を生成してその中からいい感じの部分を拾ってオリジナルの単語を作るツールです。{"\n"}
+          それっぽい単語になりやすいように確率調整したり無理な発音になりにくいように調整してます。{"\n"}
           <span style={{ textDecoration: "underline" }}><OutBoundLink href="http://www.nicovideo.jp/watch/sm39674066">「フュネッヂャンってペユドチですよね」</OutBoundLink></span>という曲で思いっきりこの方法を使ったのと、毎回「ランダムに文字列生成して単語作るやつ」って言うのもめんどいので「ペユドチ」という言い方になりました。{"\n"}
           詳しいことは<span style={{ textDecoration: "underline" }}><OutBoundLink href="https://note.com/timireno/n/n07602604dacb">こちら(note)</OutBoundLink></span>
         </Typography>
