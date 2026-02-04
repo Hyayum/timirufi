@@ -12,6 +12,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import Head from "next/head";
 import { keyframes } from "@mui/system";
 import Link from "next/link";
 import OutBoundLink from "@/component/OutboundLink";
@@ -380,6 +381,9 @@ export default function Peyudochi() {
 
   return (
     <Grid container spacing={5} sx={{ p: 5, pb: 20, minWidth: 800 }}>
+      <Head>
+        <meta property="og:image" content="https://hyayum.github.io/timirufi/peyu.png" />
+      </Head>
       <Grid size={12}>
         <Typography variant="h4" sx={{ textAlign: "center" }}>
           ペユドチ生成機
