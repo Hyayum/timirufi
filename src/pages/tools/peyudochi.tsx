@@ -383,6 +383,11 @@ export default function Peyudochi() {
     <Grid container spacing={5} sx={{ p: 5, pb: 20, minWidth: 800 }}>
       <Head>
         <meta property="og:image" content="https://hyayum.github.io/timirufi/peyu.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@Timirufi" />
+        <meta name="twitter:title" content="ペユドチ生成機" />
+        <meta name="twitter:description" content="だれでもペユドチができるツール (文字ごとに確率を設定してランダムに文字列を生成できるツール)" />
+        <meta name="twitter:image" content="https://hyayum.github.io/timirufi/peyu.png" />
       </Head>
       <Grid size={12}>
         <Typography variant="h4" sx={{ textAlign: "center" }}>
