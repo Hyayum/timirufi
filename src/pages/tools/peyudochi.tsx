@@ -37,7 +37,7 @@ const vowelMap = [
   ["お", "ぉ", "こ", "ご", "そ", "ぞ", "と", "ど", "の", "ほ", "ぼ", "ぽ", "も", "よ", "ょ", "ろ"],
 ];
 
-const defaultOptions: LetterOption[] = [
+const defaultOptionsBase: LetterOption[] = [
   { letter: "あ", weight: 28, afterN: 5, notAfter: ["っ"] },
   { letter: "い", weight: 30, afterN: 5, notAfter: ["っ"] },
   { letter: "う", weight: 26, afterN: 5, notAfter: ["っ"] },
@@ -275,9 +275,15 @@ const defaultOptions: LetterOption[] = [
   { letter: "るぉ", weight: 0.5, afterTu: 0.5, minor: true },
   { letter: "っ", weight: 34, notAfter: ["っ", "ん", "ー"], notFirst: true, notLast: true },
   { letter: "ん", weight: 30, notAfter: ["っ", "ん"], notFirst: true },
-  { letter: "ー", weight: 16, notAfter: ["っ", "ん", "ー"], notFirst: true },
-  { letter: "～", weight: 16, notAfter: ["っ", "ん", "ー", "～"], notFirst: true },
+  { letter: "ー", weight: 16, notAfter: ["っ", "ん", "ー", "ぁ", "ぃ", "ぅ", "ぇ", "ぉ"], notFirst: true },
+  { letter: "～", weight: 16, notAfter: ["っ", "ん", "ー", "ぁ", "ぃ", "ぅ", "ぇ", "ぉ"], notFirst: true },
 ];
+
+const defaultOptions: LetterOption[] = [...defaultOptionsBase];
+for (const letter of ["ぁ", "ぃ", "ぅ", "ぇ", "ぉ"]) {
+  const additionalNotAfter = defaultOptionsBase.filter(option => defaultOptionsBase.some(o => o.letter == `${option.letter}${letter}`)).map(option => option.letter);
+  defaultOptions.push({ letter, weight: 1, notAfter: ["っ", "ん", "ー", "ぁ", "ぃ", "ぅ", "ぇ", "ぉ", ...additionalNotAfter], notFirst: true, minor: true });
+}
 
 const randomPick = (list: string[]) => {
   const index = Math.floor(Math.random() * list.length);
@@ -328,9 +334,8 @@ export default function Peyudochi() {
   const makeLetterList = (prev: string, isFirst: boolean, isLast: boolean, easyMode: boolean) => {
     const letterList = [];
     for (const opt of options) {
-      const notAfter = opt.notAfter && opt.notAfter.includes("～") ? [...opt.notAfter, "ぁ", "ぃ", "ぅ", "ぇ", "ぉ"] : opt.notAfter;
       if (easyMode && opt.minor) continue;
-      if (notAfter && notAfter.includes(prev)) continue;
+      if (opt.notAfter && opt.notAfter.includes(prev)) continue;
       if (isFirst && opt.notFirst) continue;
       if (isLast && opt.notLast) continue;
       const weight = prev == "っ" ? (opt.afterTu || opt.weight) :
