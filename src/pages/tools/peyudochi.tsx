@@ -277,13 +277,13 @@ const defaultOptionsBase: LetterOption[] = [
   { letter: "っ", weight: 34, notAfter: ["っ", "ん", "ー"], notFirst: true, notLast: true },
   { letter: "ん", weight: 30, notAfter: ["っ", "ん"], notFirst: true },
   { letter: "ー", weight: 16, notAfter: ["っ", "ん", "ー", "ぁ", "ぃ", "ぅ", "ぇ", "ぉ"], notFirst: true },
-  { letter: "～", weight: 16, notAfter: ["っ", "ん", "ー", "ぁ", "ぃ", "ぅ", "ぇ", "ぉ"], notFirst: true },
+  { letter: "～", weight: 16, notAfter: ["っ", "ん", "ー", "～", "ぁ", "ぃ", "ぅ", "ぇ", "ぉ"], notFirst: true },
 ];
 
 const defaultOptions: LetterOption[] = [...defaultOptionsBase];
 for (const letter of ["ぁ", "ぃ", "ぅ", "ぇ", "ぉ"]) {
   const additionalNotAfter = defaultOptionsBase.filter(option => defaultOptionsBase.some(o => o.letter == `${option.letter}${letter}`)).map(option => option.letter);
-  defaultOptions.push({ letter, weight: 2, notAfter: ["っ", "ん", "ー", "ぁ", "ぃ", "ぅ", "ぇ", "ぉ", ...additionalNotAfter], notFirst: true, minor: true });
+  defaultOptions.push({ letter, weight: 2, notAfter: ["っ", "ん", "ー", "～", "ぁ", "ぃ", "ぅ", "ぇ", "ぉ", ...additionalNotAfter], notFirst: true, minor: true });
 }
 
 const randomPick = (list: string[]) => {
@@ -358,7 +358,7 @@ export default function Peyudochi() {
         const pickedLetter = randomPick(letterList);
         const letter = prevLetter == "っ" ? replaceLetters(pickedLetter, ZA_ROW, DZA_ROW) : 
                        pickedLetter == "～" ? getSmallVowel(prevLetter) : pickedLetter;
-        prevLetter = letter;
+        prevLetter = pickedLetter;
         res.push(letter);
       }
       const hiragana = res.join("");
@@ -681,7 +681,7 @@ const EndlessPeyudochi = ({
         ref={lettersBoxRef}
         style={{ width: 600, display: "flex", overflowX: "scroll", overflowY: "hidden", padding: "32px 0" }}
         onScroll={onScroll}
-        onWheel={(e) => { e.preventDefault(); e.currentTarget.scrollBy({ left: e.deltaY, behavior: "smooth" }); }}
+        onWheel={(e) => { e.currentTarget.scrollBy({ left: e.deltaY, behavior: "smooth" }); }}
       >
         {letters.map((l, i) => (
           <div
