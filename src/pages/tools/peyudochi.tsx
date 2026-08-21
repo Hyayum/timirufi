@@ -660,7 +660,8 @@ const EndlessPeyudochi = ({
   };
 
   const displayLetters = letters.map((l, i) => toDisplayLetter(l, letters[i - 1]));
-  const selectedLetters = selectedFrom !== null && selectedTo !== null && selectedFrom < selectedTo ? displayLetters.slice(selectedFrom, selectedTo + 1).join("") : "";
+  const selectedLetters = selectedFrom !== null && selectedTo !== null && selectedFrom < selectedTo ? 
+    letters.slice(selectedFrom, selectedTo + 1).map((l, i, ls) => toDisplayLetter(l, ls[i - 1])).join("") : "";
 
   const onClickCopy = async () => {
     await navigator.clipboard.writeText(selectedLetters);
@@ -679,6 +680,7 @@ const EndlessPeyudochi = ({
         ref={lettersBoxRef}
         style={{ width: 600, display: "flex", overflowX: "scroll", overflowY: "hidden", padding: "16px 0" }}
         onScroll={onScroll}
+        onWheel={(e) => { e.preventDefault(); e.currentTarget.scrollBy({ left: e.deltaY, behavior: "smooth" }); }}
       >
         {letters.map((l, i) => (
           <div
