@@ -593,7 +593,7 @@ const EndlessPeyudochi = ({
       removedCount += 1;
     }
     while (newLetters.length < LETTERS_LENGTH || newLetters[newLetters.length - 1]?.notLast) {
-      const lettersForPick = makeLetterList(options, newLetters[newLetters.length - 1]?.letter || "", false, false, easyMode);
+      const lettersForPick = makeLetterList(options, newLetters[newLetters.length - 1]?.letter || "", newLetters.length == 0, false, easyMode);
       const pickedLetter = randomPick(lettersForPick);
       newLetters.push(toRichLetterObj(pickedLetter));
     }
