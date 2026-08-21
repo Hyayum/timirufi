@@ -626,6 +626,7 @@ const EndlessPeyudochi = ({
   };
 
   const onClickLetter = (index: number) => {
+    const clickedIndex = index;
     if (selectedFrom !== null && selectedTo === null) {
       if (index <= selectedFrom) {
         setSelectedFrom(null);
@@ -642,7 +643,7 @@ const EndlessPeyudochi = ({
       }
       setSelectedFrom(index);
       setSelectedTo(null);
-      setHoveredOn(index);
+      setHoveredOn(clickedIndex);
     }
   };
 
