@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useLayoutEffect } from "react";
 import {
   Accordion,
   AccordionDetails,
@@ -12,6 +12,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { CopyAll } from "@mui/icons-material";
 import Head from "next/head";
 import { keyframes } from "@mui/system";
 import Link from "next/link";
@@ -307,6 +308,22 @@ const getSmallVowel = (letter: string) => {
   return "";
 };
 
+const makeLetterList = (options: LetterOption[], prev: string, isFirst: boolean, isLast: boolean, easyMode: boolean) => {
+  const letterList = [];
+  for (const opt of options) {
+    if (easyMode && opt.minor) continue;
+    if (opt.notAfter && opt.notAfter.includes(prev)) continue;
+    if (isFirst && opt.notFirst) continue;
+    if (isLast && opt.notLast) continue;
+    const weight = prev == "っ" ? (opt.afterTu || opt.weight) :
+                   prev == "ん" ? (opt.afterN || opt.weight) : opt.weight;
+    for (let i = 0; i < weight * 2; i++) {
+      letterList.push(opt.letter);
+    }
+  }
+  return letterList;
+};
+
 const ZA_ROW = ["ざ", "じ", "ず", "ぜ", "ぞ"];
 const DZA_ROW = ["づぁ", "ぢ", "づ", "づぇ", "づぉ"];
 const HIRA = "あいうえおぁぃぅぇぉゔかきくけこがぎぐげごさしすせそざじずぜぞたちつてとっだぢづでどなにぬねのはひふへほばびぶべぼぱぴぷぺぽまみむめもやゆよゃゅょらりるれろわをん".split("");
@@ -331,29 +348,13 @@ export default function Peyudochi() {
     setOptions([...options]);
   };
 
-  const makeLetterList = (prev: string, isFirst: boolean, isLast: boolean, easyMode: boolean) => {
-    const letterList = [];
-    for (const opt of options) {
-      if (easyMode && opt.minor) continue;
-      if (opt.notAfter && opt.notAfter.includes(prev)) continue;
-      if (isFirst && opt.notFirst) continue;
-      if (isLast && opt.notLast) continue;
-      const weight = prev == "っ" ? (opt.afterTu || opt.weight) :
-                     prev == "ん" ? (opt.afterN || opt.weight) : opt.weight;
-      for (let i = 0; i < weight * 2; i++) {
-        letterList.push(opt.letter);
-      }
-    }
-    return letterList;
-  };
-
   const peyudochi = () => {
     const results: { hiragana: string, katakana: string }[] = [];
     for (let i = 0; i < outputs; i++) {
       let prevLetter = "";
       const res = [];
       for (let j = 0; j < letters; j++) {
-        const letterList = makeLetterList(prevLetter, j == 0, j == letters - 1, easyMode);
+        const letterList = makeLetterList(options, prevLetter, j == 0, j == letters - 1, easyMode);
         const pickedLetter = randomPick(letterList);
         const letter = prevLetter == "っ" ? replaceLetters(pickedLetter, ZA_ROW, DZA_ROW) : 
                        pickedLetter == "～" ? getSmallVowel(prevLetter) : pickedLetter;
@@ -538,6 +539,161 @@ export default function Peyudochi() {
           詳しいことは<span style={{ textDecoration: "underline" }}><OutBoundLink href="https://note.com/timireno/n/n07602604dacb">こちら(note)</OutBoundLink></span>
         </Typography>
       </Grid>
+
+      <Grid size={12}>
+        <Typography variant="h6" sx={{ mb: 1 }}>
+          エンドレスペユドチ
+        </Typography>
+        <EndlessPeyudochi options={options} easyMode={easyMode} />
+      </Grid>
     </Grid>
   );
 }
+
+const EndlessPeyudochi = ({
+  options,
+  easyMode,
+}: {
+  options: LetterOption[],
+  easyMode: boolean,
+}) => {
+  const [letters, setLetters] = useState<LetterOption[]>([]);
+  const [selectedFrom, setSelectedFrom] = useState<number | null>(null);
+  const [selectedTo, setSelectedTo] = useState<number | null>(null);
+  const [hoveredOn, setHoveredOn] = useState<number | null>(null);
+  const lettersBoxRef = useRef<HTMLDivElement | null>(null);
+  const letterBlocksRef = useRef<(HTMLDivElement | null)[]>([]);
+  const removedWidthRef = useRef(0);
+  const LETTERS_LENGTH = 200;
+  const REMOVE_DISTANCE = 150;
+  const REMOVE_LENGTH = 2;
+  const [copied, setCopied] = useState(false);
+  const copiedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const toRichLetterObj = (letterStr: string) => {
+    const obj = options.find((opt) => opt.letter == letterStr);
+    if (!obj) throw Error(`LetterOption not found: ${letterStr}`);
+    return obj;
+  };
+
+  const toDisplayLetter = (letter: LetterOption, prev?: LetterOption) => {
+    if (prev && prev.letter == "っ") return replaceLetters(letter.letter, ZA_ROW, DZA_ROW);
+    if (prev && letter.letter == "～") return getSmallVowel(prev.letter);
+    return letter.letter;
+  };
+
+  const renewLetters = () => {
+    let newLetters = letters.slice(REMOVE_LENGTH);
+    let removedCount = Math.min(letters.length, REMOVE_LENGTH);
+    while (newLetters[0] && newLetters[0].notFirst) {
+      newLetters = newLetters.slice(1);
+      removedCount += 1;
+    }
+    while (newLetters.length < LETTERS_LENGTH || newLetters[newLetters.length - 1]?.notLast) {
+      const lettersForPick = makeLetterList(options, newLetters[newLetters.length - 1]?.letter || "", false, false, easyMode);
+      const pickedLetter = randomPick(lettersForPick);
+      newLetters.push(toRichLetterObj(pickedLetter));
+    }
+
+    if ((selectedFrom !== null && selectedFrom < removedCount) || (selectedTo !== null && selectedTo < removedCount)) {
+      setSelectedFrom(null);
+      setSelectedTo(null);
+    } else {
+      setSelectedFrom(selectedFrom !== null ? selectedFrom - removedCount : null);
+      setSelectedTo(selectedTo !== null ? selectedTo - removedCount : null);
+    }
+
+    removedWidthRef.current = letterBlocksRef.current.slice(0, removedCount).reduce((sum, el) => sum + (el?.getBoundingClientRect().width || 0), 0);
+    setLetters(newLetters);
+  };
+
+  useEffect(() => {
+    renewLetters();
+  }, []);
+
+  useLayoutEffect(() => {
+    if (lettersBoxRef.current) lettersBoxRef.current.scrollBy({ left: -removedWidthRef.current });
+  }, [letters]);
+
+  const onScroll = (e: React.UIEvent) => {
+    const el = e.currentTarget;
+    if (letterBlocksRef.current[REMOVE_DISTANCE] && el.scrollLeft > letterBlocksRef.current[REMOVE_DISTANCE].offsetLeft) {
+      renewLetters();
+    }
+  };
+
+  const onClickLetter = (index: number) => {
+    if (selectedFrom !== null && selectedTo === null) {
+      if (index <= selectedFrom) {
+        setSelectedFrom(null);
+        setSelectedTo(null);
+        return;
+      }
+      while (index > 0 && letters[index].notLast) {
+        index += 1;
+      }
+      setSelectedTo(index);
+    } else {
+      while (index < letters.length - 1 && letters[index].notFirst) {
+        index -= 1;
+      }
+      setSelectedFrom(index);
+      setSelectedTo(null);
+    }
+  };
+
+  const letterBgColor = (index: number) => {
+    const SELECTED = "#ffcccc";
+    const HOVERED = "#ffeeee";
+    const NOT_SELECTED = "transparent";
+    if (selectedFrom !== null && selectedTo !== null) {
+      return selectedFrom <= index && index <= selectedTo ? SELECTED : NOT_SELECTED;
+    } else if (selectedFrom !== null && hoveredOn !== null) {
+      return selectedFrom == index ? SELECTED :
+        selectedFrom < index && index <= hoveredOn ? HOVERED : NOT_SELECTED;
+    } else {
+      return NOT_SELECTED;
+    }
+  };
+
+  const displayLetters = letters.map((l, i) => toDisplayLetter(l, letters[i - 1]));
+  const selectedLetters = selectedFrom !== null && selectedTo !== null && selectedFrom < selectedTo ? displayLetters.slice(selectedFrom, selectedTo + 1).join("") : "";
+
+  const onClickCopy = async () => {
+    await navigator.clipboard.writeText(selectedLetters);
+    setCopied(true);
+    copiedTimeoutRef.current = setTimeout(() => setCopied(false), 3000);
+  };
+
+  useEffect(() => {
+    if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current);
+    setCopied(false);
+  }, [selectedFrom, selectedTo]);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div
+        ref={lettersBoxRef}
+        style={{ width: 600, display: "flex", overflowX: "scroll", overflowY: "hidden", padding: "16px 0" }}
+        onScroll={onScroll}
+      >
+        {letters.map((l, i) => (
+          <div
+            key={`${i}`}
+            ref={(el) => { letterBlocksRef.current[i] = el; }}
+            style={{ backgroundColor: letterBgColor(i), whiteSpace: "nowrap", fontSize: 18, userSelect: "none" }}
+            onClick={() => onClickLetter(i)}
+            onMouseEnter={() => setHoveredOn(i)}
+          >
+            {displayLetters[i]}
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 4, alignItems: "center", height: 30 }}>
+        <div>{selectedLetters}</div>
+        {selectedLetters && <CopyAll style={{ color: "#888", cursor: "pointer" }} onClick={onClickCopy} />}
+        {selectedLetters && copied && <div style={{ fontSize: 10, color: "#4b4", backgroundColor: "#dfd", padding: "2px 5px", borderRadius: 5 }}>コピーしました</div>}
+      </div>
+    </div>
+  );
+};
