@@ -544,7 +544,7 @@ export default function Peyudochi() {
         <Typography variant="h6" sx={{ mb: 1 }}>
           エンドレスペユドチ
         </Typography>
-        <EndlessPeyudochi options={options} easyMode={easyMode} />
+        <EndlessPeyudochi options={options} easyMode={easyMode} katakana={katakana} />
       </Grid>
     </Grid>
   );
@@ -553,9 +553,11 @@ export default function Peyudochi() {
 const EndlessPeyudochi = ({
   options,
   easyMode,
+  katakana,
 }: {
   options: LetterOption[],
   easyMode: boolean,
+  katakana: boolean,
 }) => {
   const [letters, setLetters] = useState<LetterOption[]>([]);
   const [selectedFrom, setSelectedFrom] = useState<number | null>(null);
@@ -577,9 +579,10 @@ const EndlessPeyudochi = ({
   };
 
   const toDisplayLetter = (letter: LetterOption, prev?: LetterOption) => {
-    if (prev && prev.letter == "っ") return replaceLetters(letter.letter, ZA_ROW, DZA_ROW);
-    if (prev && letter.letter == "～") return getSmallVowel(prev.letter);
-    return letter.letter;
+    let hira = letter.letter;
+    if (prev && prev.letter == "っ") { hira = replaceLetters(letter.letter, ZA_ROW, DZA_ROW); }
+    if (prev && letter.letter == "～") { hira = getSmallVowel(prev.letter); }
+    return katakana ? replaceLetters(hira, HIRA, KATA) : hira;
   };
 
   const renewLetters = () => {
