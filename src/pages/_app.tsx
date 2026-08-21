@@ -87,8 +87,8 @@ const menuLinks = [
   { name: "#てぃみ式 コードエディタ", path: "/tools/chord_editor", desc: "独自の音楽理論「#てぃみ式」を基にコードの情報を入力して再生したり解析したりできるツール" },
 ];
 
-const outboundLinks = [
-  { name: "つぃみぐの", url: "https://hyayum.github.io/tsimiguno/", desc: "機械学習を利用して効率的にペユドチできるようにしたツール" },
+const outboundLinks: { name: string, url: string, desc: string }[] = [
+  // { name: "つぃみぐの", url: "https://hyayum.github.io/tsimiguno/", desc: "機械学習を利用して効率的にペユドチできるようにしたツール" },
 ];
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
