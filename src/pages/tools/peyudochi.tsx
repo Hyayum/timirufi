@@ -642,6 +642,7 @@ const EndlessPeyudochi = ({
       }
       setSelectedFrom(index);
       setSelectedTo(null);
+      setHoveredOn(index);
     }
   };
 
@@ -678,7 +679,7 @@ const EndlessPeyudochi = ({
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <div
         ref={lettersBoxRef}
-        style={{ width: 600, display: "flex", overflowX: "scroll", overflowY: "hidden", padding: "16px 0" }}
+        style={{ width: 600, display: "flex", overflowX: "scroll", overflowY: "hidden", padding: "32px 0" }}
         onScroll={onScroll}
         onWheel={(e) => { e.preventDefault(); e.currentTarget.scrollBy({ left: e.deltaY, behavior: "smooth" }); }}
       >
