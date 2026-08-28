@@ -337,6 +337,7 @@ export default function Peyudochi() {
   const [katakana, setKatakana] = useState(false);
   const [share, setShare] = useState("");
   const [easyMode, setEasyMode] = useState(false);
+  const [searchTarget, setSearchTarget] = useState("");
 
   useEffect(() => {
     document.title = "ペユドチ生成機";
@@ -448,7 +449,7 @@ export default function Peyudochi() {
             />
           </Box>
         </Box>
-        <Box sx={{display: "flex"}}>
+        <Box sx={{ display: "flex", alignItems: "center" }}>
           <FormGroup sx={{ ml: 1 }}>
             <FormControlLabel
               control={
@@ -465,6 +466,12 @@ export default function Peyudochi() {
               label="簡単ペユドチ（一般的な音のみ）"
             />
           </FormGroup>
+          <TextField
+            label="捕捉したい文字列"
+            value={searchTarget}
+            onChange={(e) => setSearchTarget(e.target.value)}
+            size="small"
+          />
         </Box>
       </Grid>
       <Grid size={12} sx={{ display: "flex", justifyContent: "center" }}>
@@ -492,7 +499,14 @@ export default function Peyudochi() {
         <Grid container spacing={1.5}>
           {result.length > 0 ? result.map((res, i) => (
             <Grid size={{ xs: 4, sm: 3, lg: 2 }} key={i}>
-              <Typography variant="body1" onClick={() => setShare(katakana ? res.katakana : res.hiragana)}>
+              <Typography 
+                variant="body1"
+                onClick={() => setShare(katakana ? res.katakana : res.hiragana)}
+                style={{
+                  backgroundColor: searchTarget && (res.katakana.includes(searchTarget) || res.hiragana.includes(searchTarget)) ? "#fcc" : "transparent",
+                  width: "fit-content",
+                }}
+              >
                 {katakana ? res.katakana : res.hiragana}
               </Typography>
             </Grid>
