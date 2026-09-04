@@ -338,6 +338,7 @@ export default function Peyudochi() {
   const [share, setShare] = useState("");
   const [easyMode, setEasyMode] = useState(false);
   const [searchTarget, setSearchTarget] = useState("");
+  const [skipGuard, setSkipGuard] = useState(0);
 
   useEffect(() => {
     document.title = "ペユドチ生成機";
@@ -349,7 +350,15 @@ export default function Peyudochi() {
     setOptions([...options]);
   };
 
+  const isTarget = (res: { hiragana: string, katakana: string }) => {
+    return searchTarget && (res.katakana.match(searchTarget) || res.hiragana.match(searchTarget));
+  };
+
   const peyudochi = () => {
+    if (skipGuard > 0) {
+      setSkipGuard(skipGuard - 1);
+      return;
+    }
     const results: { hiragana: string, katakana: string }[] = [];
     for (let i = 0; i < outputs; i++) {
       let prevLetter = "";
@@ -366,6 +375,9 @@ export default function Peyudochi() {
       results.push({ hiragana, katakana: replaceLetters(hiragana, HIRA, KATA) });
     }
     setResult(results);
+    if (results.some(isTarget)) {
+      setSkipGuard(5);
+    }
   };
   
   const shareText = `${share}${"\n"}#だれでもペユドチ${"\n"}https://hyayum.github.io/timirufi/peyudochi`;
@@ -474,7 +486,7 @@ export default function Peyudochi() {
           />
         </Box>
       </Grid>
-      <Grid size={12} sx={{ display: "flex", justifyContent: "center" }}>
+      <Grid size={12} sx={{ display: "flex", justifyContent: "center", flexDirection: "column", alignItems: "center" }}>
         <Button
           variant="contained"
           size="large"
@@ -491,6 +503,13 @@ export default function Peyudochi() {
         >
           ペユドチ
         </Button>
+        {skipGuard > 0 ? (
+          <Typography variant="body1" sx={{ color: "#888", mt: 2, height: 20 }}>
+            {skipGuard > 0 && `捕捉したい文字列をスキップしないためのガード：残り${skipGuard}回クリック`}
+          </Typography>
+        ) : (
+          <Box sx={{ height: 20, mt: 2 }} />
+        )}
       </Grid>
       <Grid size={12}>
         <Typography variant="h5" sx={{ mb: 2 }}>
@@ -503,7 +522,7 @@ export default function Peyudochi() {
                 variant="body1"
                 onClick={() => setShare(katakana ? res.katakana : res.hiragana)}
                 style={{
-                  backgroundColor: searchTarget && (res.katakana.includes(searchTarget) || res.hiragana.includes(searchTarget)) ? "#fcc" : "transparent",
+                  backgroundColor: isTarget(res) ? "#fcc" : "transparent",
                   width: "fit-content",
                 }}
               >
