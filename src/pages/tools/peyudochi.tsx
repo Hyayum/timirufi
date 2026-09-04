@@ -30,6 +30,15 @@ type LetterOption = {
   minor?: boolean;
 };
 
+type SavedSettings = {
+  changedWeights: Record<string, number>;
+  letters?: number;
+  outputs?: number;
+  katakana?: boolean;
+  easyMode?: boolean;
+  searchTarget?: string;
+};
+
 const vowelMap = [
   ["あ", "ぁ", "か", "が", "さ", "ざ", "た", "だ", "な", "は", "ば", "ぱ", "ま", "や", "ゃ", "ら", "わ"],
   ["い", "ぃ", "き", "ぎ", "し", "じ", "ち", "ぢ", "に", "ひ", "び", "ぴ", "み", "り"],
@@ -336,18 +345,85 @@ export default function Peyudochi() {
   const [outputs, setOutputs] = useState(60);
   const [katakana, setKatakana] = useState(false);
   const [share, setShare] = useState("");
-  const [easyMode, setEasyMode] = useState(false);
+  const [easyMode, setEasyMode] = useState(true);
   const [searchTarget, setSearchTarget] = useState("");
   const [skipGuard, setSkipGuard] = useState(0);
+  const [savedSettings, setSavedSettings] = useState<SavedSettings>({ changedWeights: {} });
 
   useEffect(() => {
     document.title = "ペユドチ生成機";
   }, []);
-  
+
+  useEffect(() => {
+    const savedSettings = localStorage.getItem("peyudochiSettings");
+    if (savedSettings) {
+      try {
+        const settings: SavedSettings = JSON.parse(savedSettings);
+        if (settings.changedWeights && typeof settings.changedWeights === "object") {
+          const currentOptions = [...options];
+          for (const letter in settings.changedWeights) {
+            if (typeof settings.changedWeights[letter] === "number") {
+              const index = currentOptions.findIndex((opt) => opt.letter == letter);
+              if (index == -1) continue;
+              currentOptions[index] = { ...currentOptions[index], weight: Math.max(Number(settings.changedWeights[letter]), 0) };
+            }
+          }
+          setOptions(currentOptions);
+        }
+        if (typeof settings.letters === "number") {
+          setLetters(settings.letters);
+        }
+        if (typeof settings.outputs === "number") {
+          setOutputs(settings.outputs);
+        }
+        if (typeof settings.katakana === "boolean") {
+          setKatakana(settings.katakana);
+        }
+        if (typeof settings.easyMode === "boolean") {
+          setEasyMode(settings.easyMode);
+        }
+        if (typeof settings.searchTarget === "string") {
+          setSearchTarget(settings.searchTarget);
+        }
+        setSavedSettings(settings);
+      } catch {
+        setSavedSettings({ changedWeights: {} });
+      }
+    } else {
+      setSavedSettings({ changedWeights: {} });
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("peyudochiSettings", JSON.stringify(savedSettings));
+  }, [savedSettings]);
+
+  const onChangeLetters = (v: number) => {
+    setLetters(v);
+    setSavedSettings(prev => ({ ...prev, letters: v }));
+  };
+  const onChangeOutputs = (v: number) => {
+    setOutputs(v);
+    setSavedSettings(prev => ({ ...prev, outputs:v }));
+  };
+  const onChangeKatakana = (v: boolean) => {
+    setKatakana(v);
+    setSavedSettings(prev => ({ ...prev, katakana: v }));
+  };
+  const onChangeEasyMode = (v: boolean) => {
+    setEasyMode(v);
+    setSavedSettings(prev => ({ ...prev, easyMode: v }));
+  };
+  const onChangeSearchTarget = (v: string) => {
+    setSearchTarget(v);
+    setSavedSettings(prev => ({ ...prev, searchTarget: v }));
+  };
+
   const changeOption = (letter: string, weight: number) => {
     const index = options.findIndex((opt) => opt.letter == letter);
     options[index] = { ...options[index], weight: weight };
     setOptions([...options]);
+    setSavedSettings(prev => ({ ...prev, changedWeights: { ...prev.changedWeights, [letter]: weight } }));
   };
 
   const isTarget = (res: { hiragana: string, katakana: string }) => {
@@ -416,10 +492,15 @@ export default function Peyudochi() {
       <Grid size={12}>
         <Accordion sx={{ mb: 1 }}>
           <AccordionSummary id="options">
-            確率の設定
+            確率の設定 {options.some(opt => opt.weight != defaultOptions.find((o) => o.letter == opt.letter)?.weight) ? "*": ""}
           </AccordionSummary>
           <AccordionDetails>
-            <Typography variant="body2" sx={{ mb: 3 }}>文字(音)ごとの確率の比重を0.5単位で設定できます</Typography>
+            <Box sx={{ display: "flex", alignItems: "center", mb: 3, gap: 3 }}>
+              <Typography variant="body2">文字(音)ごとの確率の比重を0.5単位で設定できます</Typography>
+              <Button variant="outlined" size="small" onClick={() => { setOptions([ ...defaultOptions ]); setSavedSettings(prev => ({ ...prev, changedWeights: {} })); }}>
+                リセット
+              </Button>
+            </Box>
             <Grid container spacing={1} sx={{ display: "flex" }}>
               {options.map((opt) => easyMode && opt.minor ? null : (
                 <Grid size={{ xs: 2, md: 1.5, lg: 1, xl: 0.75 }} key={opt.letter}>
@@ -430,6 +511,7 @@ export default function Peyudochi() {
                     size="small"
                     onChange={(e) => changeOption(opt.letter, Math.max(Number(e.target.value), 0))}
                     fullWidth
+                    sx={{ backgroundColor: opt.weight != defaultOptions.find((o) => o.letter == opt.letter)?.weight ? "#ffc" : "transparent" }}
                   />
                 </Grid>
               ))}
@@ -446,7 +528,7 @@ export default function Peyudochi() {
               value={letters}
               variant="outlined"
               size="small"
-              onChange={(e) => setLetters(Math.max(Number(e.target.value), 0))}
+              onChange={(e) => onChangeLetters(Math.max(Number(e.target.value), 0))}
               fullWidth
             />
           </Box>
@@ -456,7 +538,7 @@ export default function Peyudochi() {
               value={outputs}
               variant="outlined"
               size="small"
-              onChange={(e) => setOutputs(Math.max(Number(e.target.value), 0))}
+              onChange={(e) => onChangeOutputs(Math.max(Number(e.target.value), 0))}
               fullWidth
             />
           </Box>
@@ -465,7 +547,7 @@ export default function Peyudochi() {
           <FormGroup sx={{ ml: 1 }}>
             <FormControlLabel
               control={
-                <Checkbox checked={katakana} onClick={() => setKatakana(!katakana)} />
+                <Checkbox checked={katakana} onClick={() => onChangeKatakana(!katakana)} />
               }
               label="片仮名で表示"
             />
@@ -473,15 +555,15 @@ export default function Peyudochi() {
           <FormGroup sx={{ ml: 1 }}>
             <FormControlLabel
               control={
-                <Checkbox checked={easyMode} onClick={() => setEasyMode(!easyMode)} />
+                <Checkbox checked={easyMode} onClick={() => onChangeEasyMode(!easyMode)} />
               }
               label="簡単ペユドチ（一般的な音のみ）"
             />
           </FormGroup>
           <TextField
-            label="捕捉したい文字列"
+            label="捕捉したい文字列（正規表現可）"
             value={searchTarget}
-            onChange={(e) => setSearchTarget(e.target.value)}
+            onChange={(e) => onChangeSearchTarget(e.target.value)}
             size="small"
           />
         </Box>
