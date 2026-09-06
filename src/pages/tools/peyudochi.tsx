@@ -166,6 +166,15 @@ const defaultOptionsBase: LetterOption[] = [
   { letter: "ちゅぃ", weight: 1, minor: true },
   { letter: "ちゅぇ", weight: 1, minor: true },
   { letter: "ちゅぉ", weight: 0.5, minor: true },
+  { letter: "ぢゃ", weight: 1.5, afterTu: 1 },
+  { letter: "ぢ", weight: 1.5, afterTu: 1 },
+  { letter: "ぢゅ", weight: 1.5, afterTu: 1 },
+  { letter: "ぢぇ", weight: 1.5, afterTu: 1 },
+  { letter: "ぢょ", weight: 1.5, afterTu: 1 },
+  { letter: "ぢゅぁ", weight: 0.5, minor: true },
+  { letter: "ぢゅぃ", weight: 1, minor: true },
+  { letter: "ぢゅぇ", weight: 1, minor: true },
+  { letter: "ぢゅぉ", weight: 0.5, minor: true },
   { letter: "つぁ", weight: 3 },
   { letter: "つぃ", weight: 3 },
   { letter: "つ", weight: 3 },
@@ -179,6 +188,19 @@ const defaultOptionsBase: LetterOption[] = [
   { letter: "つぅぃ", weight: 1, minor: true },
   { letter: "つぅぇ", weight: 1, minor: true },
   { letter: "つぅぉ", weight: 0.5, minor: true },
+  { letter: "づぁ", weight: 1.5, afterTu: 1 },
+  { letter: "づぃ", weight: 1.5, afterTu: 1 },
+  { letter: "づ", weight: 1.5, afterTu: 1 },
+  { letter: "づぇ", weight: 1.5, afterTu: 1 },
+  { letter: "づぉ", weight: 1.5, afterTu: 1 },
+  { letter: "づゃ", weight: 0.5, afterTu: 0.5, minor: true },
+  { letter: "づゅ", weight: 1, afterTu: 1, minor: true },
+  { letter: "づぃぇ", weight: 0.5, afterTu: 0.5, minor: true },
+  { letter: "づょ", weight: 0.5, afterTu: 0.5, minor: true },
+  { letter: "づぅぁ", weight: 0.5, afterTu: 0.5, minor: true },
+  { letter: "づぅぃ", weight: 1, afterTu: 1, minor: true },
+  { letter: "づぅぇ", weight: 1, afterTu: 1, minor: true },
+  { letter: "づぅぉ", weight: 0.5, afterTu: 0.5, minor: true },
   { letter: "な", weight: 9, notAfter: ["っ"] },
   { letter: "に", weight: 7, notAfter: ["っ"] },
   { letter: "ぬ", weight: 7, notAfter: ["っ"] },
@@ -442,7 +464,7 @@ export default function Peyudochi() {
       for (let j = 0; j < letters; j++) {
         const letterList = makeLetterList(options, prevLetter, j == 0, j == letters - 1, easyMode);
         const pickedLetter = randomPick(letterList);
-        const letter = prevLetter == "っ" ? replaceLetters(pickedLetter, ZA_ROW, DZA_ROW) : 
+        const letter = /* prevLetter == "っ" ? replaceLetters(pickedLetter, ZA_ROW, DZA_ROW) : */
                        pickedLetter == "～" ? getSmallVowel(prevLetter) : pickedLetter;
         prevLetter = pickedLetter;
         res.push(letter);
@@ -695,7 +717,7 @@ const EndlessPeyudochi = ({
 
   const toDisplayLetter = (letter: LetterOption, prev?: LetterOption) => {
     let hira = letter.letter;
-    if (prev && prev.letter == "っ") { hira = replaceLetters(letter.letter, ZA_ROW, DZA_ROW); }
+    // if (prev && prev.letter == "っ") { hira = replaceLetters(letter.letter, ZA_ROW, DZA_ROW); }
     if (prev && letter.letter == "～") { hira = getSmallVowel(prev.letter); }
     return katakana ? replaceLetters(hira, HIRA, KATA) : hira;
   };
