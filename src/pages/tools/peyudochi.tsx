@@ -449,7 +449,11 @@ export default function Peyudochi() {
   };
 
   const isTarget = (res: { hiragana: string, katakana: string }) => {
-    return searchTarget && (res.katakana.match(searchTarget) || res.hiragana.match(searchTarget));
+    try {
+      return searchTarget && (res.katakana.match(searchTarget) || res.hiragana.match(searchTarget));
+    } catch {
+      return searchTarget && (res.katakana.includes(searchTarget) || res.hiragana.includes(searchTarget));
+    }
   };
 
   const peyudochi = () => {
