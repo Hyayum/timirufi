@@ -39,21 +39,24 @@ export const defaultChord: Chord = {
   beats: 2,
 };
 
-const hsvToRgb = (h: number, s: number, v: number) => {
+export const hsvToRgb = (h: number, s: number, v: number) => {
+  h = (h % 360 + 360) % 360;
+  s = Math.min(Math.max(s, 0), 100);
+  v = Math.min(Math.max(v, 0), 100);
   const high = Math.round(255 * v / 100);
   const low = Math.round(255 * v * (100 - s) / 10000);
   const getMid = (h: number) => {
     return Math.round((high - low) * h / 60 + low);
   };
   const getStr = (nums: number[]) => {
-    return `#${nums.map((n) => n.toString(16)).join("")}`;
+    return `#${nums.map((n) => n.toString(16).padStart(2, "0")).join("")}`;
   };
   if (0 <= h && h < 60) { return getStr([high, getMid(h), low]); }
   if (60 <= h && h < 120) { return getStr([getMid(120 - h), high, low]); }
   if (120 <= h && h < 180) { return getStr([low, high, getMid(h - 120)]); }
   if (180 <= h && h < 240) { return getStr([low, getMid(240 - h), high]); }
   if (240 <= h && h < 300) { return getStr([getMid(h - 240), low, high]); }
-  if (300 <= h && h <= 360) { return getStr([high, low, getMid(360 - h)]); }
+  return getStr([high, low, getMid(360 - h)]);
 };
 
 export const keyColors = Array(12).fill(0).reduce((obj, z, i)=> ({
