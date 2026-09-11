@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   Add,
   Check,
@@ -60,7 +60,7 @@ const calcPath = (startDirection: number, points: RoutePoint[]) => {
   let direction = startDirection;
   let lastX; let lastY;
   let lastRadius; let lastCx; let lastCy;
-  points.forEach((point, i) => {
+  for (const [i, point] of points.entries()) {
     if (i == 0) {
       svgParts.push(`M${px(point.x)} ${px(point.y)}`);
       lastX = point.x; lastY = point.y;
@@ -71,7 +71,7 @@ const calcPath = (startDirection: number, points: RoutePoint[]) => {
     svgParts.push(`L${px(midX)} ${px(midY)}`);
     lastX = midX; lastY = midY;
     // 直線 -> 曲線 -> 次の点
-    if (i == points.length - 1) return;
+    if (i == points.length - 1) continue;
     const nextX = points[i + 1].x;
     const nextY = points[i + 1].y;
     const nx = -Math.sin(direction); // 現在の方向に垂直
@@ -82,7 +82,7 @@ const calcPath = (startDirection: number, points: RoutePoint[]) => {
     if (dot == 0) {
       svgParts.push(`L${px(nextX)} ${px(nextY)}`);
       lastX = nextX; lastY = nextY;
-      return;
+      continue;
     }
     const r = (vx ** 2 + vy ** 2) / (2 * dot);
     const cx = midX + r * nx; // 中心
@@ -96,7 +96,7 @@ const calcPath = (startDirection: number, points: RoutePoint[]) => {
     direction = r > 0 ? Math.atan2(nextX - cx, -(nextY - cy)) : Math.atan2(-(nextX - cx), nextY - cy);
     lastX = nextX; lastY = nextY;
     lastRadius = r; lastCx = cx; lastCy = cy;
-  });
+  };
   return {
     svgPath: svgParts.join(""),
     lastX, lastY,
@@ -141,6 +141,48 @@ const calcPrevRoute = (r: Route) => {
   return route;
 };
 
+const calcNearestPathPoint = (path: SVGPathElement, x: number, y: number, width: number = 0) => {
+  const length = path.getTotalLength();
+  const minD = Math.min(width / 2, length);
+  const maxD = Math.max(length - (width / 2), 0);
+  // 雑め
+  const roughStep = 10
+  let minDistance = Infinity;
+  let nearestD = 0;
+  for (let d = minD; d <= maxD; d += roughStep) {
+    const p = path.getPointAtLength(d);
+    const distance = ((x - p.x) ** 2 + (y - p.y) ** 2) ** 0.5;
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearestD = d;
+    }
+  }
+  // 細かく
+  minDistance = Infinity;
+  const searchFrom = Math.max(nearestD - roughStep / 2, minD);
+  const searchTo = Math.min(nearestD + roughStep, maxD);
+  const startP = path.getPointAtLength(searchFrom);
+  nearestD = searchFrom;
+  let nearestX = startP.x;
+  let nearestY = startP.y;
+  for (let d = searchFrom; d <= searchTo; d += 0.5) {
+    const p = path.getPointAtLength(d);
+    const distance = ((x - p.x) ** 2 + (y - p.y) ** 2) ** 0.5;
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearestX = p.x;
+      nearestY = p.y;
+      nearestD = d;
+    }
+  }
+
+  return {
+    x: nearestX,
+    y: nearestY,
+    distance: nearestD, // px
+  };
+};
+
 const rgb = (hsv: HSV) => {
   return hsvToRgb(hsv.h, hsv.s, hsv.v);
 };
@@ -169,6 +211,9 @@ export default function Rails() {
   const [routeNameEditing, setRouteNameEditing] = useState<{ idx: number, name: string } | null>(null);
   const [routeColorEditing, setRouteColorEditing] = useState<{ idx: number, color: HSV } | null>(null);
   const routeNameBoxRef = useRef<HTMLInputElement | null>(null);
+  // station
+  const [stationLength, setStationLength] = useState(130); // m
+  const [stationWidth, setStationWidth] = useState(16); // m
   // svg
   const [mode, setMode] = useState<Mode>("draw");
   const [mouseXY, setMouseXY] = useState<XY | null>(null); // in SVG
@@ -178,6 +223,8 @@ export default function Rails() {
   const FRAME_HEIGHT = 720;
   const [zoom, setZoom] = useState(-2); // 2^x
   const [viewboxTL, setViewBoxTL] = useState<XY>({ x: 0, y: 0 });
+  const routePathRefs = useRef<(SVGPathElement | null)[]>([]);
+  const selectedPath = routePathRefs.current[selectedRouteIdx] ?? null;
 
   const getXYInSvg = (e: React.MouseEvent<SVGSVGElement>, topLeft?: XY) => {
     const svgRect = e.currentTarget.getBoundingClientRect();
@@ -199,6 +246,22 @@ export default function Rails() {
     if (selectedRoute && mode == "draw") {
       const newRoute = e.button == 2 ? calcPrevRoute(selectedRoute) : calcNextRoute(selectedRoute, meter(x), meter(y));
       updateRoute(selectedRouteIdx, newRoute);
+    }
+    if (selectedRoute && selectedPath && mode == "station") {
+      const nearest = calcNearestPathPoint(selectedPath, x, y, px(stationLength));
+      const newStation = {
+        distance: nearest.distance,
+        name: "New",
+        number: "",
+        nameLabelHidden: false,
+        nameLabelPosition: { x: 32, y: 16 },
+        numberLabelPosition: { x: 32, y: -16 },
+        length: stationLength,
+        width: stationWidth,
+        left: 0,
+        platform: "",
+      };
+      updateRoute(selectedRouteIdx, { ...selectedRoute, stations: [...selectedRoute.stations, newStation] });
     }
   };
 
@@ -246,6 +309,7 @@ export default function Rails() {
 
   const addRoute = () => {
     setRoutes(prev => [...prev, { ...initialRoute }]);
+    setRouteDeletionMode(false);
   };
 
   const deleteRoute = (idx: number) => {
@@ -256,11 +320,13 @@ export default function Rails() {
     }
   };
 
-  const previewRoute = selectedRoute && mouseXY ? calcNextRoute(selectedRoute, meter(mouseXY.x), meter(mouseXY.y), 2000) : null;
+  const previewRoute = selectedRoute && mouseXY && mode == "draw" ? calcNextRoute(selectedRoute, meter(mouseXY.x), meter(mouseXY.y), 2000) : null;
+  const previewPoint = selectedPath && mouseXY && mode == "station" ? calcNearestPathPoint(selectedPath, mouseXY.x, mouseXY.y, px(stationLength)) : null;
 
   return (
     <div style={{ display: "flex", alignItems: "flex-start", marginTop: 80 }}>
       <div style={{ display: "flex", flexDirection: "column", minWidth: 240, borderTop: "solid 1px #aab" }}>
+        {/* routes menu */}
         <div style={{ display: "flex", alignItems: "center", borderBottom: "solid 1px #aab" }}>
           {[
             { onClick: addRoute, OpeIcon: Add },
@@ -288,6 +354,7 @@ export default function Rails() {
             );
           })}
         </div>
+        {/* routes list */}
         {routes.map((route, i) => {
           const key = `routeSelect_${i}`;
           return (
@@ -368,6 +435,7 @@ export default function Rails() {
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", border: "solid 1px #aab" }}>
+        {/* mode */}
         <div style={{ display: "flex", alignItems: "center", borderBottom: "solid 1px #aab" }}>
           {[
             { mode: "view", ModeIcon: PanTool },
@@ -396,6 +464,7 @@ export default function Rails() {
             );
           })}
         </div>
+        {/* svg */}
         <div onContextMenu={e => e.preventDefault()}>
           <svg
             width={FRAME_WIDTH}
@@ -409,7 +478,8 @@ export default function Rails() {
             style={{ 
               backgroundColor: "#444",
               cursor: mode == "view" ? (dragStartedAt ? "grabbing" : "grab") :
-                mode == "draw" ? "crosshair" : "default",
+                mode == "draw" ? "crosshair" :
+                mode == "station" ? "pointer" : "default",
             }}
           >
             <rect x={0} y={0} width={size.x} height={size.y} fill="#fff" />
@@ -432,7 +502,7 @@ export default function Rails() {
               return <path key={`grid_ys_${i}`} d={`M0 ${y} ${size.x} ${y}`} stroke="#ddd" strokeWidth={0.5} fill="none" />;
             })}
 
-            {/* preview */}
+            {/* draw preview */}
             {mode == "draw" && mouseXY && selectedRoute.points.length == 0 && (
               <circle cx={mouseXY.x} cy={mouseXY.y} r={8} fill={rgb(selectedRoute.color)} />
             )}
@@ -447,14 +517,46 @@ export default function Rails() {
 
             {/* routes */}
             {routes.map((route, i) => route.startDirection !== null && (
-              <path
+              <RoutePath
                 key={`routePath_${i}`}
-                d={calcPath(route.startDirection, route.points).svgPath}
-                stroke={rgb(route.color)}
-                strokeWidth={route.width}
-                fill="none"
+                ref={elm => { routePathRefs.current[i] = elm; }}
+                startDirection={route.startDirection}
+                points={route.points}
+                color={route.color}
+                width={route.width}
               />
             ))}
+
+            {/* station preview */}
+            {mode == "station" && selectedRoute && selectedPath && previewPoint && (
+              <path
+                d={`M${Array.from({ length: 15 }).map((_, i) => {
+                  const p = selectedPath.getPointAtLength(previewPoint.distance + px(stationLength) * (i - 7) / (7 * 2));
+                  return `${p.x} ${p.y}`;
+                }).join("L")}`}
+                stroke={rgb(selectedRoute.color)}
+                strokeWidth={px(stationWidth)}
+                strokeOpacity={0.4}
+                fill="none"
+              />
+            )}
+
+            {/* stations */}
+            {routes.map((route, i) => route.stations.map((station, j) => {
+              const key = `station_${i}_${j}`;
+              const path = routePathRefs.current[i];
+              return path && (
+                <StationPath
+                  key={key}
+                  id={key}
+                  path={path}
+                  distance={station.distance}
+                  length={station.length}
+                  color={route.color}
+                  width={station.width}
+                />
+              );
+            }))}
           </svg>
         </div>
       </div>
@@ -481,7 +583,7 @@ const ColorPicker = ({
     const barElm = param == "h" ? hBarRef.current : param == "s" ? sBarRef.current : vBarRef.current;
     if (!barElm) return;
     const barRect = barElm.getBoundingClientRect();
-    const value = (param == "h" ? 255 : 100) * Math.min(Math.max((e.clientX - barRect.x) / barRect.width, 0), 1);
+    const value = (param == "h" ? 360 : 100) * Math.min(Math.max((e.clientX - barRect.x) / barRect.width, 0), 1);
     onChange({ ...color, [param]: Math.round(value) });
   };
 
@@ -538,7 +640,7 @@ const ColorPicker = ({
           <div
             style={{
               ...cursorCssParams,
-              left: `calc(${color.h * 100 / 255}% - 2px)`,
+              left: `calc(${color.h * 100 / 360}% - 2px)`,
             }}
           />
         </div>
@@ -589,3 +691,65 @@ const ColorPicker = ({
     </div>
   );
 };
+
+type RoutePathProps = {
+  ref: React.Ref<SVGPathElement>;
+  startDirection: number;
+  points: RoutePoint[];
+  color: HSV;
+  width: number
+};
+
+const RoutePath = React.memo((props: RoutePathProps) => (
+  <path
+    ref={props.ref}
+    d={calcPath(props.startDirection, props.points).svgPath}
+    stroke={rgb(props.color)}
+    strokeWidth={props.width}
+    fill="none"
+  />
+), (prev, next) => {
+  for (const key of Object.keys(prev) as (keyof RoutePathProps)[]) {
+    if (key === "points" || key === "color") continue;
+    if (!Object.is(prev[key], next[key])) {
+      return false;
+    }
+  }
+  return (
+    prev.points.length == next.points.length && prev.points.every((prevP, i) => (
+      Object.keys(prevP) as (keyof RoutePoint)[]).every((key) => Object.is(prevP[key], next.points[i][key])
+    )) &&
+    (Object.keys(prev.color) as (keyof HSV)[]).every((key) => Object.is(prev.color[key], next.color[key]))
+  );
+});
+
+type StationPathProps = {
+  id: string;
+  path: SVGPathElement;
+  distance: number;
+  length: number;
+  color: HSV;
+  width: number;
+};
+
+const StationPath = React.memo((props: StationPathProps) => (
+  <path
+    d={`M${Array.from({ length: 15 }).map((_, i) => {
+      const p = props.path.getPointAtLength(props.distance + px(props.length) * (i - 7) / (7 * 2));
+      return `${p.x} ${p.y}`;
+    }).join("L")}`}
+    stroke={rgb(props.color)}
+    strokeWidth={px(props.width)}
+    fill="none"
+  />
+), (prev, next) => {
+  for (const key of Object.keys(prev) as (keyof StationPathProps)[]) {
+    if (key === "color") continue;
+    if (!Object.is(prev[key], next[key])) {
+      return false;
+    }
+  }
+  return (
+    (Object.keys(prev.color) as (keyof HSV)[]).every((key) => Object.is(prev.color[key], next.color[key]))
+  );
+});
