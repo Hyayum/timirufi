@@ -1,12 +1,13 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   Add,
+  AddLocationAlt,
   Check,
   Close,
   Delete,
+  EditLocationAlt,
   ModeEdit,
   PanTool,
-  Place,
 } from "@mui/icons-material";
 import { hsvToRgb } from "@/chord/model";
 
@@ -17,6 +18,23 @@ type XY = {
 
 type RoutePoint = XY & {
   length: number | null; // 点(x,y) -> 直線(length) -> 次の点に向かう曲線(円弧) -> ...
+};
+
+type Station = {
+  distance: number; // px
+  name: string;
+  number: string;
+  nameLabelPosition: XY; // 相対px
+  numberLabelPosition: XY; // 相対px
+  length: number; // m
+  width: number; // m
+  left: number; // 中心からのずれ(進行左方向) m
+  platform: string; // 進行左からホーム有無 ex: 101(相対) 010(島) 1010
+};
+
+type LayerChangePoint = {
+  distance: number;
+  upper: boolean;
 };
 
 type HSV = {
@@ -30,23 +48,9 @@ type Route = {
   name: string;
   startDirection: number | null; // rad
   points: RoutePoint[];
-  stations: {
-    distance: number;
-    name: string;
-    number: string;
-    nameLabelHidden: boolean;
-    nameLabelPosition: XY; // 相対px
-    numberLabelPosition: XY; // 相対px
-    length: number;
-    width: number;
-    left: number; // 中心からのずれ(進行左方向)
-    platform: string; // 進行左からホーム有無 ex: 101(相対) 010(島) 1010
-  }[];
+  stations: Station[];
   startLayer: number; // 0-2 (地下～高架)
-  layerChangePoints: {
-    distance: number;
-    upper: boolean;
-  }[];
+  layerChangePoints: LayerChangePoint[];
   color: HSV;
   width: number; // px
 };
@@ -55,21 +59,36 @@ const METER_PER_PX = 5;
 const meter = (px: number) => px * METER_PER_PX;
 const px = (meter: number) => meter / METER_PER_PX;
 
-const calcPath = (startDirection: number, points: RoutePoint[]) => {
+type RoutePointInfo = RoutePoint & {
+  midX: number | null;
+  midY: number | null;
+};
+
+type PathData = {
+  svgPath: string;
+  lastDirection: number,
+  lastX: number | null;
+  lastY: number | null;
+  lastRadius: number | null,
+  pointsInfo: RoutePointInfo[];
+};
+
+const calcPath = (startDirection: number, points: RoutePoint[], offset: XY): PathData => {
   const svgParts: string[] = [];
   let direction = startDirection;
   let lastX; let lastY;
-  let lastRadius; let lastCx; let lastCy;
+  let lastRadius;
+  const pointsInfo: RoutePointInfo[] = points.map(p => ({ ...p, midX: null, midY: null }));
   for (const [i, point] of points.entries()) {
     if (i == 0) {
-      svgParts.push(`M${px(point.x)} ${px(point.y)}`);
-      lastX = point.x; lastY = point.y;
+      svgParts.push(`M${px(point.x) + offset.x} ${px(point.y) + offset.y}`);
     }
     // 点 -> 直線
     const midX = point.x + (point.length ?? 0) * Math.cos(direction);
     const midY = point.y + (point.length ?? 0) * Math.sin(direction);
-    svgParts.push(`L${px(midX)} ${px(midY)}`);
-    lastX = midX; lastY = midY;
+    svgParts.push(`L${px(midX) + offset.x} ${px(midY) + offset.y}`);
+    pointsInfo[i].midX = midX;
+    pointsInfo[i].midY = midY;
     // 直線 -> 曲線 -> 次の点
     if (i == points.length - 1) continue;
     const nextX = points[i + 1].x;
@@ -80,7 +99,7 @@ const calcPath = (startDirection: number, points: RoutePoint[]) => {
     const vy = nextY - midY;
     const dot = nx * vx + ny * vy;
     if (dot == 0) {
-      svgParts.push(`L${px(nextX)} ${px(nextY)}`);
+      svgParts.push(`L${px(nextX) + offset.x} ${px(nextY) + offset.y}`);
       lastX = nextX; lastY = nextY;
       continue;
     }
@@ -92,28 +111,30 @@ const calcPath = (startDirection: number, points: RoutePoint[]) => {
     const isLargeArc = r > 0 ? (endAngle + (endAngle < startAngle ? Math.PI * 2 : 0) - startAngle) > Math.PI :
       (startAngle + (startAngle < endAngle ? Math.PI * 2 : 0) - endAngle) > Math.PI;
     const isClockwise = r > 0; // SVG上
-    svgParts.push(`A${px(r)} ${px(r)} 0 ${isLargeArc ? "1": "0"} ${isClockwise ? "1" : "0"} ${px(nextX)} ${px(nextY)}`);
+    svgParts.push(`A${px(r)} ${px(r)} 0 ${isLargeArc ? "1": "0"} ${isClockwise ? "1" : "0"} ${px(nextX) + offset.x} ${px(nextY) + offset.y}`);
     direction = r > 0 ? Math.atan2(nextX - cx, -(nextY - cy)) : Math.atan2(-(nextX - cx), nextY - cy);
     lastX = nextX; lastY = nextY;
-    lastRadius = r; lastCx = cx; lastCy = cy;
+    lastRadius = r;
   };
   return {
     svgPath: svgParts.join(""),
-    lastX, lastY,
     lastDirection: direction,
-    lastRadius, lastCx, lastCy,
+    lastX: lastX ?? null,
+    lastY: lastY ?? null,
+    lastRadius: lastRadius ?? null,
+    pointsInfo,
   };
 };
 
-const calcNextRoute = (r: Route, x: number, y: number, addLength?: number) => {
+const calcNextRoute = (r: Route, x: number, y: number, offset: XY, addLength?: number) => {
   const route = { ...r, points: r.points.map(p => ({ ...p })) };
   const lastPoint = route.points[route.points.length - 1];
   if (!lastPoint || lastPoint.length !== null) { // 次の点
-    route.points.push({ x, y, length: addLength ?? null });
+    route.points.push({ x: x - meter(offset.x), y: y - meter(offset.y), length: addLength ?? null });
   } else { // 直線長さ
-    const direction = route.startDirection !== null ? calcPath(route.startDirection, route.points).lastDirection : null;
-    const vx = x - lastPoint.x;
-    const vy = y - lastPoint.y;
+    const direction = route.startDirection !== null ? calcPath(route.startDirection, route.points, offset).lastDirection : null;
+    const vx = x - meter(offset.x) - lastPoint.x;
+    const vy = y - meter(offset.y) - lastPoint.y;
     if (direction === null) {
       route.points[route.points.length - 1].length = (vx ** 2 + vy ** 2) ** 0.5;
       route.startDirection = Math.atan2(vy, vx);
@@ -183,11 +204,33 @@ const calcNearestPathPoint = (path: SVGPathElement, x: number, y: number, width:
   };
 };
 
+const getDirectionAtLength = (path: SVGPathElement, d: number) => {
+  const total = path.getTotalLength();
+  const d1 = d >= total ? total - 0.01 : Math.max(d, 0);
+  const d2 = d >= total ? total : d1 + 0.01;
+  const p1 = path.getPointAtLength(d1);
+  const p2 = path.getPointAtLength(d2);
+  return Math.atan2(p2.y - p1.y, p2.x - p1.x);
+};
+
+const getSidePoint = (x: number, y: number, direction: number, distance: number) => {
+  const dx = Math.cos(direction + Math.PI / 2) * distance;
+  const dy = Math.sin(direction + Math.PI / 2) * distance;
+  return { x: x + dx, y: y + dy, direction };
+};
+
 const rgb = (hsv: HSV) => {
   return hsvToRgb(hsv.h, hsv.s, hsv.v);
 };
 
-type Mode = "view" | "draw" | "station" | "layer";
+const lighten = (color: HSV, rate: number): HSV => {
+  // -Inf black - 0 original - Inf white
+  const s = color.s / 2 ** Math.abs(rate);
+  const v = rate > 0 ? 100 - (100 - color.v) / 2 ** rate : color.v * 2 ** rate;
+  return { ...color, s, v };
+};
+
+type Mode = "view" | "draw" | "station" | "station_edit" | "layer";
 
 const initialRoute: Route = {
   name: "New Route",
@@ -198,6 +241,21 @@ const initialRoute: Route = {
   layerChangePoints: [],
   color: { h: 0, s: 100, v: 80 },
   width: 2,
+};
+
+const inputStyle: React.CSSProperties = {
+  height: 20,
+  outline: "none",
+  border: "solid 1px #aab",
+  borderRadius: 4,
+};
+
+const moveButtonStyle: React.CSSProperties = {
+  width: 32,
+  height: 24,
+  lineHeight: 1,
+  textAlign: "center",
+  cursor: "pointer",
 };
 
 export default function Rails() {
@@ -214,17 +272,23 @@ export default function Rails() {
   // station
   const [stationLength, setStationLength] = useState(130); // m
   const [stationWidth, setStationWidth] = useState(16); // m
+  const [selectedStationIdx, setSelectedStationIdx] = useState<({ routeIdx: number, stationIdx: number } | null)>(null);
+  const selectedStation = selectedStationIdx !== null ? routes[selectedStationIdx.routeIdx]?.stations[selectedStationIdx.stationIdx] ?? null : null;
   // svg
   const [mode, setMode] = useState<Mode>("draw");
   const [mouseXY, setMouseXY] = useState<XY | null>(null); // in SVG
   const [dragStartedAt, setDragStartedAt] = useState<{ clicked: XY, topLeft: XY } | null>(null); // in SVG
   const [size, setSize] = useState<XY>({ x: 6000, y: 6000 }); // px
+  const [offset, setOffset] = useState<XY>({ x: 0, y: 0 }) // px
   const FRAME_WIDTH = 1080;
   const FRAME_HEIGHT = 720;
   const [zoom, setZoom] = useState(-2); // 2^x
   const [viewboxTL, setViewBoxTL] = useState<XY>({ x: 0, y: 0 });
   const routePathRefs = useRef<(SVGPathElement | null)[]>([]);
   const selectedPath = routePathRefs.current[selectedRouteIdx] ?? null;
+  const routePathLengths = routePathRefs.current.map(path => path?.getTotalLength() || null);
+  const routePathData = routes.map(r => r.startDirection !== null ? calcPath(r.startDirection, r.points, offset) : null);
+  const selectedPathData = routePathData[selectedRouteIdx] ?? null;
 
   const getXYInSvg = (e: React.MouseEvent<SVGSVGElement>, topLeft?: XY) => {
     const svgRect = e.currentTarget.getBoundingClientRect();
@@ -244,18 +308,18 @@ export default function Rails() {
       setDragStartedAt({ clicked: { x, y }, topLeft: { ...viewboxTL } });
     }
     if (selectedRoute && mode == "draw") {
-      const newRoute = e.button == 2 ? calcPrevRoute(selectedRoute) : calcNextRoute(selectedRoute, meter(x), meter(y));
+      const newRoute = e.button == 2 ? calcPrevRoute(selectedRoute) : calcNextRoute(selectedRoute, meter(x), meter(y), offset);
       updateRoute(selectedRouteIdx, newRoute);
     }
     if (selectedRoute && selectedPath && mode == "station") {
       const nearest = calcNearestPathPoint(selectedPath, x, y, px(stationLength));
       const newStation = {
         distance: nearest.distance,
-        name: "New",
+        name: "",
         number: "",
         nameLabelHidden: false,
-        nameLabelPosition: { x: 32, y: 16 },
-        numberLabelPosition: { x: 32, y: -16 },
+        nameLabelPosition: { x: 8, y: 8 },
+        numberLabelPosition: { x: 8, y: -8 },
         length: stationLength,
         width: stationWidth,
         left: 0,
@@ -320,8 +384,77 @@ export default function Rails() {
     }
   };
 
-  const previewRoute = selectedRoute && mouseXY && mode == "draw" ? calcNextRoute(selectedRoute, meter(mouseXY.x), meter(mouseXY.y), 2000) : null;
+  const onClickStation = useCallback((e: React.MouseEvent<SVGPathElement>, routeIdx: number, stationIdx: number) => {
+    if (mode != "station_edit") return;
+    e.stopPropagation();
+    setSelectedStationIdx({ routeIdx, stationIdx });
+  }, [mode]);
+
+  const updateStation = (routeIdx: number, stationIdx: number, value: Partial<Station>) => {
+    const route = routes[routeIdx];
+    const station = route?.stations[stationIdx];
+    if (mode != "station_edit" || !station) return;
+    const newStations = route.stations.map((s, i) => i == stationIdx ? { ...station, ...value } : s);
+    updateRoute(routeIdx, { ...route, stations: newStations });
+  };
+
+  const moveStationLabel = (routeIdx: number, stationIdx: number, type: "name" | "number", diff: XY) => {
+    const route = routes[routeIdx];
+    const station = route?.stations[stationIdx];
+    if (mode != "station_edit" || !station) return;
+    const prevPosition = type == "name" ? station.nameLabelPosition : station.numberLabelPosition;
+    const newPosition = { x: prevPosition.x + diff.x, y: prevPosition.y + diff.y };
+    const key: keyof Station = type == "name" ? "nameLabelPosition" : "numberLabelPosition"; 
+    updateStation(routeIdx, stationIdx, { [key]: newPosition });
+  };
+
+  const deleteStation = (routeIdx: number, stationIdx: number) => {
+    const route = routes[routeIdx];
+    if (mode != "station_edit" || !route) return;
+    const newStations = route.stations.filter((_, i) => i !== stationIdx);
+    updateRoute(routeIdx, { ...route, stations: newStations });
+    setSelectedStationIdx(null);
+  };
+
+  const getLayerAtLength = (startLayer: number, changePoints: LayerChangePoint[], distance: number) => {
+    return changePoints.filter(p => p.distance <= distance).reduce((acc, p) => acc + (p.upper ? 1 : -1), startLayer);
+  };
+
+  const reverseRoute = (routeIdx: number) => {
+    const route = routes[routeIdx];
+    const pathData = routePathData[routeIdx];
+    const pathElm = routePathRefs.current[routeIdx];
+    if (mode != "draw" || !route || !pathData || !pathElm || route.points.length == 0 || route.startDirection === null) return;
+    const totalLength = pathElm.getTotalLength();
+    const startDirection = pathData.lastDirection + Math.PI;
+    const points = [...pathData.pointsInfo].reverse().map((p, i, pts) => {
+      const x = pts[i].midX ?? pts[i].x;
+      const y = pts[i].midY ?? pts[i].y;
+      const length = p.length ?? 0;
+      return { x, y, length };
+    });
+    const stations = route.stations.map(s => ({ ...s, distance: totalLength - s.distance }));
+    const layerChangePoints = route.layerChangePoints.map(s => ({ ...s, distance: totalLength - s.distance, upper: !s.upper }));
+    const startLayer = getLayerAtLength(route.startLayer, route.layerChangePoints, totalLength);
+    updateRoute(routeIdx, { ...route, startDirection, points, stations, layerChangePoints, startLayer });
+  };
+
+  const previewRoute = selectedRoute && mouseXY && mode == "draw" ? calcNextRoute(selectedRoute, meter(mouseXY.x), meter(mouseXY.y), offset, 2000) : null;
+  const previewPath = previewRoute && previewRoute.startDirection !== null ? calcPath(previewRoute.startDirection, previewRoute.points, offset) : null;
   const previewPoint = selectedPath && mouseXY && mode == "station" ? calcNearestPathPoint(selectedPath, mouseXY.x, mouseXY.y, px(stationLength)) : null;
+
+  const distanceFromPrevStation = (distance: number, stations: Station[]) => {
+    const prevStation = stations.filter(s => s.distance < distance).sort((a, b) => b.distance - a.distance)[0];
+    return prevStation ? distance - prevStation.distance : null;
+  };
+  const distanceToNextStation = (distance: number, stations: Station[]) => {
+    const nextStation = stations.filter(s => s.distance > distance).sort((a, b) => a.distance - b.distance)[0];
+    return nextStation ? nextStation.distance - distance : null;
+  };
+  const previewFromPrev = previewPoint && selectedRoute ? distanceFromPrevStation(previewPoint.distance, selectedRoute.stations) : null;
+  const previewToNext = previewPoint && selectedRoute ? distanceToNextStation(previewPoint.distance, selectedRoute.stations) : null;
+  const selectedFromPrev = selectedStation && selectedRoute ? distanceFromPrevStation(selectedStation.distance, selectedRoute.stations) : null;
+  const selectedToNext = selectedStation && selectedRoute ? distanceToNextStation(selectedStation.distance, selectedRoute.stations) : null;
 
   return (
     <div style={{ display: "flex", alignItems: "flex-start", marginTop: 80 }}>
@@ -394,11 +527,8 @@ export default function Rails() {
                     ref={routeNameBoxRef}
                     type="text"
                     style={{
+                      ...inputStyle,
                       width: 120,
-                      height: 20,
-                      outline: "none",
-                      border: "solid 1px #aab",
-                      borderRadius: 4,
                     }}
                     value={routeNameEditing.name}
                     onChange={(e) => setRouteNameEditing({ idx: i, name: e.target.value })}
@@ -440,7 +570,8 @@ export default function Rails() {
           {[
             { mode: "view", ModeIcon: PanTool },
             { mode: "draw", ModeIcon: ModeEdit },
-            { mode: "station", ModeIcon: Place },
+            { mode: "station", ModeIcon: AddLocationAlt },
+            { mode: "station_edit", ModeIcon: EditLocationAlt },
           ].map(m => {
             const key = `modeSelect_${m.mode}`;
             return (
@@ -506,9 +637,9 @@ export default function Rails() {
             {mode == "draw" && mouseXY && selectedRoute.points.length == 0 && (
               <circle cx={mouseXY.x} cy={mouseXY.y} r={8} fill={rgb(selectedRoute.color)} />
             )}
-            {mode == "draw" && previewRoute && previewRoute.startDirection !== null && (
+            {mode == "draw" && previewPath && (
               <path
-                d={calcPath(previewRoute.startDirection, previewRoute.points).svgPath}
+                d={previewPath.svgPath}
                 stroke="#888"
                 strokeWidth={1}
                 fill="none"
@@ -524,41 +655,301 @@ export default function Rails() {
                 points={route.points}
                 color={route.color}
                 width={route.width}
+                offset={offset}
               />
             ))}
 
             {/* station preview */}
-            {mode == "station" && selectedRoute && selectedPath && previewPoint && (
-              <path
-                d={`M${Array.from({ length: 15 }).map((_, i) => {
-                  const p = selectedPath.getPointAtLength(previewPoint.distance + px(stationLength) * (i - 7) / (7 * 2));
-                  return `${p.x} ${p.y}`;
-                }).join("L")}`}
-                stroke={rgb(selectedRoute.color)}
-                strokeWidth={px(stationWidth)}
-                strokeOpacity={0.4}
-                fill="none"
+            {mode == "station" && selectedRoute && selectedPathData && previewPoint && (
+              <StationPath
+                id="station_preview"
+                svgPath={selectedPathData.svgPath}
+                distance={previewPoint.distance}
+                length={stationLength}
+                color={selectedRoute.color}
+                width={stationWidth}
+                opacity={0.4}
               />
             )}
 
             {/* stations */}
             {routes.map((route, i) => route.stations.map((station, j) => {
               const key = `station_${i}_${j}`;
-              const path = routePathRefs.current[i];
-              return path && (
+              const pathData = routePathData[i];
+              const isSelected = mode == "station_edit" && selectedStationIdx && selectedStationIdx.routeIdx == i && selectedStationIdx.stationIdx == j;
+              return pathData && routePathLengths[i] && station.distance <= routePathLengths[i] && (
                 <StationPath
                   key={key}
                   id={key}
-                  path={path}
+                  svgPath={pathData.svgPath}
                   distance={station.distance}
                   length={station.length}
-                  color={route.color}
+                  color={isSelected ? lighten(route.color, 2) : isHovered(key) ? lighten(route.color, 1) : route.color}
                   width={station.width}
+                  left={station.left}
+                  platform={station.platform}
+                  name={station.name}
+                  number={station.number}
+                  nameLabelPosition={station.nameLabelPosition}
+                  numberLabelPosition={station.numberLabelPosition}
+                  onClick={onClickStation}
+                  setHoveredAt={setHoveredAt}
+                  routeIdx={i}
+                  stationIdx={j}
+                  mouseEnterEnabled={mode == "station_edit"}
+                  style={{ cursor: mode == "station_edit" && !isSelected ? "pointer" : "default" }}
                 />
               );
             }))}
           </svg>
         </div>
+      </div>
+
+      {/* info */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, border: "solid 1px #aab", width: 480, height: 640, padding: 8, fontSize: 12 }}>
+        {selectedPath && <div>全長 {Math.round(meter(selectedPath.getTotalLength()) * 10 / 1000) / 10 } km</div>}
+        {mode == "view" ? (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 64 }}>サイズ(px)</div>
+              <input
+                type="text"
+                value={size.x}
+                style={{ ...inputStyle, width: 48 }}
+                onChange={(e) => setSize(prev => ({ ...prev, x: Math.max(Number(e.target.value) || 0) }))}
+              />
+              <div>×</div>
+              <input
+                type="text"
+                value={size.y}
+                style={{ ...inputStyle, width: 48 }}
+                onChange={(e) => setSize(prev => ({ ...prev, y: Math.max(Number(e.target.value) || 0) }))}
+              />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 64 }}>枠移動(px)</div>
+              <div>右方向</div>
+              <input
+                type="text"
+                value={offset.x}
+                style={{ ...inputStyle, width: 48 }}
+                onChange={(e) => setOffset(prev => ({ ...prev, x: Number(e.target.value) || 0 }))}
+              />
+              <div>下方向</div>
+              <input
+                type="text"
+                value={offset.y}
+                style={{ ...inputStyle, width: 48 }}
+                onChange={(e) => setOffset(prev => ({ ...prev, y: Number(e.target.value) }))}
+              />
+            </div>
+          </>
+        ) :  mode == "draw" ? (
+          <>
+            {previewPath && previewPath.lastRadius !== null && selectedRoute.points[selectedRoute.points.length - 1].length !== null && <div>半径 {Math.abs(Math.round(previewPath.lastRadius))} m</div>}
+            <button style={{ width: 48 }} onClick={() => reverseRoute(selectedRouteIdx)}>反転</button>
+          </>
+        ) : mode == "station" ? (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 48 }}>長さ(m)</div>
+              <input
+                type="text"
+                value={stationLength}
+                style={{ ...inputStyle, width: 48 }}
+                onChange={(e) => setStationLength(Math.max(Number(e.target.value) || 0, 0))}
+              />
+              <div style={{ display: "flex" }}>
+                {[
+                  { label: "＋", diff: 1 },
+                  { label: "－", diff: -1 },
+                ].map(b => (
+                  <button
+                    key={`changeLength_${b.label}`}
+                    style={moveButtonStyle}
+                    onClick={() => setStationLength(Math.max(stationLength + b.diff, 0))}
+                  >
+                    {b.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 48 }}>幅(m)</div>
+              <input
+                type="text"
+                value={stationWidth}
+                style={{ ...inputStyle, width: 48 }}
+                onChange={(e) => setStationWidth(Math.max(Number(e.target.value) || 0, 0))}
+              />
+              <div style={{ display: "flex" }}>
+                {[
+                  { label: "＋", diff: 1 },
+                  { label: "－", diff: -1 },
+                ].map(b => (
+                  <button
+                    key={`changeWidth_${b.label}`}
+                    style={moveButtonStyle}
+                    onClick={() => setStationWidth(Math.max(stationWidth + b.diff, 0))}
+                  >
+                    {b.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {previewFromPrev !== null && <div>前の駅から {Math.round(meter(previewFromPrev) * 10 / 1000) / 10 } km</div>}
+            {previewToNext !== null && <div>次の駅まで {Math.round(meter(previewToNext) * 10 / 1000) / 10 } km</div>}
+          </>
+        ) : mode == "station_edit" ? selectedStationIdx && selectedStation && (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 120 }}>駅名</div>
+              <input
+                type="text"
+                value={selectedStation.name}
+                style={{ ...inputStyle, width: 120 }}
+                onChange={(e) => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { name: e.target.value })}
+              />
+              <div style={{ display: "flex" }}>
+                {[
+                  { label: "≪", diff: { x: -30, y: 0 } },
+                  { label: "≫", diff: { x: 30, y: 0 } },
+                  { label: "←", diff: { x: -3, y: 0 } },
+                  { label: "→", diff: { x: 3, y: 0 } },
+                  { label: "↑", diff: { x: 0, y: -3 } },
+                  { label: "↓", diff: { x: 0, y: 3 } },
+                ].map(b => (
+                  <button
+                    key={`moveName_${b.label}`}
+                    style={moveButtonStyle}
+                    onClick={() => moveStationLabel(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, "name", b.diff)}
+                  >
+                    {b.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 120 }}>番号</div>
+              <input
+                type="text"
+                value={selectedStation.number}
+                style={{ ...inputStyle, width: 120 }}
+                onChange={(e) => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { number: e.target.value })}
+              />
+              <div style={{ display: "flex" }}>
+                {[
+                  { label: "←", diff: { x: -3, y: 0 } },
+                  { label: "→", diff: { x: 3, y: 0 } },
+                  { label: "↑", diff: { x: 0, y: -3 } },
+                  { label: "↓", diff: { x: 0, y: 3 } },
+                ].map(b => (
+                  <button
+                    key={`moveNumber_${b.label}`}
+                    style={moveButtonStyle}
+                    onClick={() => moveStationLabel(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, "number", b.diff)}
+                  >
+                    {b.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 120 }}>長さ(m)</div>
+              <input
+                type="text"
+                value={selectedStation.length}
+                style={{ ...inputStyle, width: 48 }}
+                onChange={(e) => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { length: Math.max(Number(e.target.value) || 0, 0) })}
+              />
+              <div style={{ display: "flex" }}>
+                {[
+                  { label: "＋", diff: 1 },
+                  { label: "－", diff: -1 },
+                ].map(b => (
+                  <button
+                    key={`changeLength_${b.label}`}
+                    style={moveButtonStyle}
+                    onClick={() => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { length: Math.max(selectedStation.length + b.diff, 0) })}
+                  >
+                    {b.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 120 }}>幅(m)</div>
+              <input
+                type="text"
+                value={selectedStation.width}
+                style={{ ...inputStyle, width: 48 }}
+                onChange={(e) => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { width: Math.max(Number(e.target.value) || 0, 0) })}
+              />
+              <div style={{ display: "flex" }}>
+                {[
+                  { label: "＋", diff: 1 },
+                  { label: "－", diff: -1 },
+                ].map(b => (
+                  <button
+                    key={`changeWidth_${b.label}`}
+                    style={moveButtonStyle}
+                    onClick={() => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { width: Math.max(selectedStation.width + b.diff, 0) })}
+                  >
+                    {b.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 120 }}>中心からのずれ(m)</div>
+              <input
+                type="text"
+                value={selectedStation.left}
+                style={{ ...inputStyle, width: 48 }}
+                onChange={(e) => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { left: Math.min(Math.max(Number(e.target.value) || 0, -selectedStation.width / 2), selectedStation.width / 2) })}
+              />
+              <div style={{ display: "flex" }}>
+                {[
+                  { label: "＋", diff: 1 },
+                  { label: "－", diff: -1 },
+                ].map(b => (
+                  <button
+                    key={`changeLeft_${b.label}`}
+                    style={moveButtonStyle}
+                    onClick={() => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { left: Math.min(Math.max(selectedStation.left + b.diff, -selectedStation.width / 2), selectedStation.width / 2) })}
+                  >
+                    {b.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 120 }}>ホーム(0/1)</div>
+              <input
+                type="text"
+                value={selectedStation.platform}
+                style={{ ...inputStyle, width: 120 }}
+                onChange={(e) => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { platform: Array.from(e.target.value).filter(c => c == "0" || c == "1").join("") })}
+              />
+              <div style={{ display: "flex" }}>
+                {["1001", "010", "01010"].map(b => (
+                  <button
+                    key={`changePlatform_${b}`}
+                    style={{ ...moveButtonStyle, width: 56 }}
+                    onClick={() => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { platform: b })}
+                  >
+                    {b}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {selectedFromPrev !== null && <div>前の駅から {Math.round(meter(selectedFromPrev) * 10 / 1000) / 10 } km</div>}
+            {selectedToNext !== null && <div>次の駅まで {Math.round(meter(selectedToNext) * 10 / 1000) / 10 } km</div>}
+            <div style={{ marginTop: "auto", marginLeft: "auto" }}>
+              <Delete style={{ color: "#f44", cursor: "pointer" }} onClick={() => deleteStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx)} />
+            </div>
+          </>
+        ) : <></>}
       </div>
     </div>
   );
@@ -697,59 +1088,140 @@ type RoutePathProps = {
   startDirection: number;
   points: RoutePoint[];
   color: HSV;
-  width: number
+  width: number;
+  offset: XY;
+};
+
+const isSameObj = <T,>(prev: T, next: T) => {
+  return !prev || !next ? Object.is(prev, next) :
+    (Object.keys(prev) as (keyof T)[]).every((key) => Object.is(prev[key], next[key]))
 };
 
 const RoutePath = React.memo((props: RoutePathProps) => (
   <path
     ref={props.ref}
-    d={calcPath(props.startDirection, props.points).svgPath}
+    d={calcPath(props.startDirection, props.points, props.offset).svgPath}
     stroke={rgb(props.color)}
     strokeWidth={props.width}
     fill="none"
   />
 ), (prev, next) => {
   for (const key of Object.keys(prev) as (keyof RoutePathProps)[]) {
-    if (key === "points" || key === "color") continue;
+    if (key === "points" || key === "color" || key == "offset") continue;
     if (!Object.is(prev[key], next[key])) {
       return false;
     }
   }
   return (
-    prev.points.length == next.points.length && prev.points.every((prevP, i) => (
-      Object.keys(prevP) as (keyof RoutePoint)[]).every((key) => Object.is(prevP[key], next.points[i][key])
-    )) &&
-    (Object.keys(prev.color) as (keyof HSV)[]).every((key) => Object.is(prev.color[key], next.color[key]))
+    prev.points.length == next.points.length && prev.points.every((prevP, i) => isSameObj(prevP, next.points[i])) &&
+    isSameObj(prev.color, next.color) &&
+    isSameObj(prev.offset, next.offset)
   );
 });
 
 type StationPathProps = {
   id: string;
-  path: SVGPathElement;
+  svgPath: string;
   distance: number;
   length: number;
   color: HSV;
   width: number;
+  left?: number;
+  platform?: string;
+  name?: string;
+  number?: string;
+  nameLabelPosition?: XY;
+  numberLabelPosition?: XY;
+  opacity?: number;
+  onClick?: (e: React.MouseEvent<SVGPathElement>, routeIdx: number, stationIdx: number) => void;
+  setHoveredAt?: React.Dispatch<string | null>;
+  routeIdx?: number;
+  stationIdx?: number;
+  mouseEnterEnabled?: boolean;
+  style?: React.CSSProperties;
 };
 
-const StationPath = React.memo((props: StationPathProps) => (
-  <path
-    d={`M${Array.from({ length: 15 }).map((_, i) => {
-      const p = props.path.getPointAtLength(props.distance + px(props.length) * (i - 7) / (7 * 2));
-      return `${p.x} ${p.y}`;
-    }).join("L")}`}
-    stroke={rgb(props.color)}
-    strokeWidth={px(props.width)}
-    fill="none"
-  />
-), (prev, next) => {
+const StationPath = React.memo((props: StationPathProps) => {
+  const pathElm = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  pathElm.setAttribute("d", props.svgPath);
+  const centerPoints = Array.from({ length: 15 }).map((_, i) => {
+    const distance = props.distance + px(props.length) * (i - 7) / (7 * 2);
+    const p = pathElm.getPointAtLength(distance);
+    const direction = getDirectionAtLength(pathElm, distance);
+    return { x: p.x, y: p.y, distance, direction };
+  });
+  const stationPoints = centerPoints.map(p => getSidePoint(p.x, p.y, p.direction, px(props.left || 0)));
+  const platformCount = props.platform?.length || 0;
+  const platformWidth = platformCount ? px(props.width / platformCount) : 0;
+  const platformPaths = props.platform ? Array.from(props.platform).map((f, i) => f == "1" ?
+    stationPoints.map(p => getSidePoint(p.x, p.y, p.direction, px(props.width / 2 - i * props.width / platformCount) - platformWidth / 2)) : null) : null;
+  return (
+    <>
+      <path
+        d={`M${stationPoints.map(p => `${p.x} ${p.y}`).join("L")}`}
+        stroke={rgb(props.color)}
+        strokeWidth={px(props.width) + 8}
+        fill="none"
+        onClick={(e) => props.onClick && props.routeIdx !== undefined && props.stationIdx !== undefined && props.onClick(e, props.routeIdx, props.stationIdx)}
+        onMouseEnter={() => { if (props.mouseEnterEnabled && props.setHoveredAt) { props.setHoveredAt(props.id) } }}
+        onMouseLeave={() => props.setHoveredAt && props.setHoveredAt(null)}
+        opacity={0}
+        style={{ ...props.style,  }}
+      />
+      <path
+        d={`M${stationPoints.map(p => `${p.x} ${p.y}`).join("L")}`}
+        stroke={rgb(props.color)}
+        strokeWidth={px(props.width)}
+        strokeOpacity={props.opacity}
+        fill="none"
+        style={{ pointerEvents: "none" }}
+      />
+      {platformPaths?.map((p, i) => p && (
+        <path
+          key={`platform_${i}`}
+          d={`M${p.map(p => `${p.x} ${p.y}`).join("L")}`}
+          stroke={rgb({ h: props.color.h + 180, s: 80, v: 100 })}
+          strokeWidth={platformWidth}
+          strokeOpacity={props.opacity}
+          fill="none"
+          style={{ pointerEvents: "none" }}
+        />
+      ))}
+      {props.name && (
+        <text
+          x={centerPoints[7].x + (props.nameLabelPosition?.x || 0)}
+          y={centerPoints[7].y + (props.nameLabelPosition?.y || 0)}
+          fill={rgb({ h: 225, s: 80, v: 60 })}
+          style={{ fontSize: 20, pointerEvents: "none" }}
+        >
+          {props.name}
+        </text>
+      )}
+      {props.number && (
+        <text
+          x={centerPoints[7].x + (props.numberLabelPosition?.x || 0)}
+          y={centerPoints[7].y + (props.numberLabelPosition?.y || 0)}
+          fill={rgb({ h: 225, s: 80, v: 60 })}
+          style={{ fontSize: 12, pointerEvents: "none" }}
+        >
+          {props.number}
+        </text>
+      )}
+    </>
+  );
+}, (prev, next) => {
   for (const key of Object.keys(prev) as (keyof StationPathProps)[]) {
-    if (key === "color") continue;
+    if (
+      key === "color" || key === "nameLabelPosition" || key == "numberLabelPosition" || key === "style"
+    ) continue;
     if (!Object.is(prev[key], next[key])) {
       return false;
     }
   }
   return (
-    (Object.keys(prev.color) as (keyof HSV)[]).every((key) => Object.is(prev.color[key], next.color[key]))
+    isSameObj(prev.color, next.color) &&
+    isSameObj(prev.nameLabelPosition, next.nameLabelPosition) &&
+    isSameObj(prev.numberLabelPosition, next.numberLabelPosition) &&
+    isSameObj(prev.style, next.style)
   );
 });
