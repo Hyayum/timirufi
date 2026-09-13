@@ -6,6 +6,7 @@ import {
   Close,
   Delete,
   EditLocationAlt,
+  Layers,
   ModeEdit,
   PanTool,
 } from "@mui/icons-material";
@@ -67,26 +68,44 @@ type RoutePointInfo = RoutePoint & {
 type PathData = {
   svgPath: string;
   lastDirection: number,
-  lastX: number | null;
-  lastY: number | null;
   lastRadius: number | null,
   pointsInfo: RoutePointInfo[];
 };
 
-const calcPath = (startDirection: number, points: RoutePoint[], offset: XY): PathData => {
+const calcPath = (startDirection: number, points: RoutePoint[], offset: XY, from: number = 0, to: number = Infinity): PathData => {
   const svgParts: string[] = [];
   let direction = startDirection;
-  let lastX; let lastY;
   let lastRadius;
+  let distance = 0;
+  let nextDistance = 0;
   const pointsInfo: RoutePointInfo[] = points.map(p => ({ ...p, midX: null, midY: null }));
   for (const [i, point] of points.entries()) {
-    if (i == 0) {
+    if (i == 0 && from <= 0) {
       svgParts.push(`M${px(point.x) + offset.x} ${px(point.y) + offset.y}`);
     }
     // 点 -> 直線
     const midX = point.x + (point.length ?? 0) * Math.cos(direction);
     const midY = point.y + (point.length ?? 0) * Math.sin(direction);
-    svgParts.push(`L${px(midX) + offset.x} ${px(midY) + offset.y}`);
+    nextDistance = distance + (point.length ?? 0);
+    if (to < distance || nextDistance < from) {
+      // none
+    } else if (from <= distance && nextDistance <= to) {
+      svgParts.push(`L${px(midX) + offset.x} ${px(midY) + offset.y}`);
+    } else {
+      const fromX = point.x + (from - distance) * Math.cos(direction);
+      const fromY = point.y + (from - distance) * Math.sin(direction);
+      const toX = point.x + (to - distance) * Math.cos(direction);
+      const toY = point.y + (to - distance) * Math.sin(direction);
+      if (distance < from && from < nextDistance) {
+        svgParts.push(`M${px(fromX) + offset.x} ${px(fromY) + offset.y}`);
+      }
+      if (distance < to && to < nextDistance) {
+        svgParts.push(`L${px(toX) + offset.x} ${px(toY) + offset.y}`);
+      } else {
+        svgParts.push(`L${px(midX) + offset.x} ${px(midY) + offset.y}`);
+      }
+    }
+    distance = nextDistance;
     pointsInfo[i].midX = midX;
     pointsInfo[i].midY = midY;
     // 直線 -> 曲線 -> 次の点
@@ -99,28 +118,67 @@ const calcPath = (startDirection: number, points: RoutePoint[], offset: XY): Pat
     const vy = nextY - midY;
     const dot = nx * vx + ny * vy;
     if (dot == 0) {
-      svgParts.push(`L${px(nextX) + offset.x} ${px(nextY) + offset.y}`);
-      lastX = nextX; lastY = nextY;
+      const lineLength = (vx ** 2 + vy ** 2) ** 0.5;
+      nextDistance = distance + lineLength;
+      if (to < distance || nextDistance < from) {
+        // none
+      } else if (from <= distance && nextDistance <= to) {
+        svgParts.push(`L${px(nextX) + offset.x} ${px(nextY) + offset.y}`);
+      } else {
+        const fromX = midX + (from - distance) * Math.cos(direction);
+        const fromY = midY + (from - distance) * Math.sin(direction);
+        const toX = midX + (to - distance) * Math.cos(direction);
+        const toY = midY + (to - distance) * Math.sin(direction);
+        if (distance < from && from < nextDistance) {
+          svgParts.push(`M${px(fromX) + offset.x} ${px(fromY) + offset.y}`);
+        }
+        if (distance < to && to < nextDistance) {
+          svgParts.push(`L${px(toX) + offset.x} ${px(toY) + offset.y}`);
+        } else {
+          svgParts.push(`L${px(nextX) + offset.x} ${px(nextY) + offset.y}`);
+        }
+      }
+      distance = nextDistance;
       continue;
     }
     const r = (vx ** 2 + vy ** 2) / (2 * dot);
     const cx = midX + r * nx; // 中心
     const cy = midY + r * ny;
     const startAngle = Math.atan2(midY - cy, midX - cx);
-    const endAngle = Math.atan2(nextY - cy, nextX - cx);
-    const isLargeArc = r > 0 ? (endAngle + (endAngle < startAngle ? Math.PI * 2 : 0) - startAngle) > Math.PI :
-      (startAngle + (startAngle < endAngle ? Math.PI * 2 : 0) - endAngle) > Math.PI;
+    const _endAngle = Math.atan2(nextY - cy, nextX - cx);
+    const endAngle = r > 0 ? _endAngle + (_endAngle < startAngle ? Math.PI * 2 : 0) : _endAngle - (_endAngle > startAngle ? Math.PI * 2 : 0)
+    const isLargeArc = Math.abs(endAngle - startAngle) > Math.PI;
     const isClockwise = r > 0; // SVG上
-    svgParts.push(`A${px(r)} ${px(r)} 0 ${isLargeArc ? "1": "0"} ${isClockwise ? "1" : "0"} ${px(nextX) + offset.x} ${px(nextY) + offset.y}`);
+    const arcLength = Math.abs((endAngle - startAngle) * r);
+    nextDistance = distance + arcLength;
+    if (to < distance || nextDistance < from) {
+      // none
+    } else if (from <= distance && nextDistance <= to) {
+      svgParts.push(`A${px(r)} ${px(r)} 0 ${isLargeArc ? "1" : "0"} ${isClockwise ? "1" : "0"} ${px(nextX) + offset.x} ${px(nextY) + offset.y}`);
+    } else {
+      const fromAngle = startAngle + (endAngle - startAngle) * (from - distance) / arcLength;
+      const fromX = cx + Math.abs(r) * Math.cos(fromAngle);
+      const fromY = cy + Math.abs(r) * Math.sin(fromAngle);
+      const toAngle = startAngle + (endAngle - startAngle) * (to - distance) / arcLength;
+      const toX = cx + Math.abs(r) * Math.cos(toAngle);
+      const toY = cy + Math.abs(r) * Math.sin(toAngle);
+      const useFrom = distance < from && from < nextDistance;
+      const useTo = distance < to && to < nextDistance;
+      if (useFrom) {
+        svgParts.push(`M${px(fromX) + offset.x} ${px(fromY) + offset.y}`);
+      }
+      const endX = useTo ? toX : nextX;
+      const endY = useTo ? toY : nextY;
+      const arcSize = Math.abs((useTo ? toAngle : endAngle) - (useFrom ? fromAngle : startAngle));
+      svgParts.push(`A${px(r)} ${px(r)} 0 ${arcSize > Math.PI ? "1" : "0"} ${isClockwise ? "1" : "0"} ${px(endX) + offset.x} ${px(endY) + offset.y}`);
+    }
+    distance = nextDistance;
     direction = r > 0 ? Math.atan2(nextX - cx, -(nextY - cy)) : Math.atan2(-(nextX - cx), nextY - cy);
-    lastX = nextX; lastY = nextY;
     lastRadius = r;
   };
   return {
     svgPath: svgParts.join(""),
     lastDirection: direction,
-    lastX: lastX ?? null,
-    lastY: lastY ?? null,
     lastRadius: lastRadius ?? null,
     pointsInfo,
   };
@@ -274,6 +332,8 @@ export default function Rails() {
   const [stationWidth, setStationWidth] = useState(16); // m
   const [selectedStationIdx, setSelectedStationIdx] = useState<({ routeIdx: number, stationIdx: number } | null)>(null);
   const selectedStation = selectedStationIdx !== null ? routes[selectedStationIdx.routeIdx]?.stations[selectedStationIdx.stationIdx] ?? null : null;
+  // layer
+  const [upper, setUpper] = useState(false);
   // svg
   const [mode, setMode] = useState<Mode>("draw");
   const [mouseXY, setMouseXY] = useState<XY | null>(null); // in SVG
@@ -326,6 +386,17 @@ export default function Rails() {
         platform: "",
       };
       updateRoute(selectedRouteIdx, { ...selectedRoute, stations: [...selectedRoute.stations, newStation] });
+    }
+    if (selectedRoute && selectedPath && mode == "layer") {
+      const nearest = calcNearestPathPoint(selectedPath, x, y);
+      const currentLayer = getLayerAtLength(selectedRoute.startLayer, selectedRoute.layerChangePoints, nearest.distance);
+      const nextLayer = currentLayer + (upper ? 1 : -1);
+      if (nextLayer < 0 || 2 < nextLayer) return;
+      const newLayerPoint = {
+        distance: nearest.distance,
+        upper,
+      };
+      updateRoute(selectedRouteIdx, { ...selectedRoute, layerChangePoints: [...selectedRoute.layerChangePoints, newLayerPoint] });
     }
   };
 
@@ -441,7 +512,7 @@ export default function Rails() {
 
   const previewRoute = selectedRoute && mouseXY && mode == "draw" ? calcNextRoute(selectedRoute, meter(mouseXY.x), meter(mouseXY.y), offset, 2000) : null;
   const previewPath = previewRoute && previewRoute.startDirection !== null ? calcPath(previewRoute.startDirection, previewRoute.points, offset) : null;
-  const previewPoint = selectedPath && mouseXY && mode == "station" ? calcNearestPathPoint(selectedPath, mouseXY.x, mouseXY.y, px(stationLength)) : null;
+  const previewPoint = selectedPath && mouseXY && (mode == "station" || mode == "layer") ? calcNearestPathPoint(selectedPath, mouseXY.x, mouseXY.y, mode == "station" ? px(stationLength) : 0) : null;
 
   const distanceFromPrevStation = (distance: number, stations: Station[]) => {
     const prevStation = stations.filter(s => s.distance < distance).sort((a, b) => b.distance - a.distance)[0];
@@ -455,6 +526,27 @@ export default function Rails() {
   const previewToNext = previewPoint && selectedRoute ? distanceToNextStation(previewPoint.distance, selectedRoute.stations) : null;
   const selectedFromPrev = selectedStation && selectedRoute ? distanceFromPrevStation(selectedStation.distance, selectedRoute.stations) : null;
   const selectedToNext = selectedStation && selectedRoute ? distanceToNextStation(selectedStation.distance, selectedRoute.stations) : null;
+
+  const sortedLayerChangePoints = routes.map(r => r.layerChangePoints.sort((a, b) => a.distance - b.distance).reduce((acc, p, i) => {
+    const fromLayer = Math.min(Math.max(i == 0 ? r.startLayer : (acc[i - 1].fromLayer + (acc[i - 1].upper ? 1 : -1)), 0), 2);
+    acc.push({ ...p, fromLayer });
+    return acc;
+  }, [] as (LayerChangePoint & { fromLayer: number })[]));
+  const layerRanges = routes.map(r => {
+    const ranges = r.layerChangePoints.sort((a, b) => a.distance - b.distance).reduce((acc, p, i, pts) => {
+      const from = i == 0 ? 0 : acc[i - 1].to;
+      const to = p.distance;
+      const layer = Math.min(Math.max(i == 0 ? r.startLayer : (acc[i - 1].layer + (pts[i - 1].upper ? 1 : -1)), 0), 2);
+      acc.push({ from, to, layer });
+      return acc;
+    }, [] as ({ from: number, to: number, layer: number })[]);
+    ranges.push({
+      from: ranges.length == 0 ? 0 : ranges[ranges.length - 1].to,
+      to: Infinity,
+      layer: ranges.length == 0 ? r.startLayer : Math.min(Math.max(ranges[ranges.length - 1].layer + (r.layerChangePoints[r.layerChangePoints.length - 1].upper ? 1 : -1), 0), 2),
+    });
+    return ranges;
+  });
 
   return (
     <div style={{ display: "flex", alignItems: "flex-start", marginTop: 80 }}>
@@ -572,6 +664,7 @@ export default function Rails() {
             { mode: "draw", ModeIcon: ModeEdit },
             { mode: "station", ModeIcon: AddLocationAlt },
             { mode: "station_edit", ModeIcon: EditLocationAlt },
+            { mode: "layer", ModeIcon: Layers },
           ].map(m => {
             const key = `modeSelect_${m.mode}`;
             return (
@@ -658,6 +751,24 @@ export default function Rails() {
                 offset={offset}
               />
             ))}
+
+            {/* routes layer */}
+            {layerRanges.map((ranges, i) => {
+              const route = routes[i];
+              const totalLength = routePathLengths[i];
+              return ranges.map((range, j) => route.startDirection !== null && totalLength !== null && range.layer !== 1 && (
+                <RoutePath
+                  key={`routeLayer_${i}_${j}`}
+                  startDirection={route.startDirection}
+                  points={route.points}
+                  color={lighten(route.color, range.layer >= 2 ? 1 : -1)}
+                  width={route.width / 2}
+                  offset={offset}
+                  from={meter(Math.min(range.from, totalLength))}
+                  to={meter(Math.min(range.to, totalLength))}
+                />
+              ))
+            })}
 
             {/* station preview */}
             {mode == "station" && selectedRoute && selectedPathData && previewPoint && (
@@ -949,6 +1060,42 @@ export default function Rails() {
               <Delete style={{ color: "#f44", cursor: "pointer" }} onClick={() => deleteStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx)} />
             </div>
           </>
+        ) : mode == "layer" ? (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                <input type="radio" checked={upper} onChange={() => setUpper(true)} style={{ cursor: "pointer" }} />
+                上方向
+              </label>
+              <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                <input type="radio" checked={!upper} onChange={() => setUpper(false)} style={{ cursor: "pointer" }} />
+                下方向
+              </label>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 48 }}>初期値</div>
+              <input
+                type="text"
+                value={selectedRoute.startLayer}
+                style={{ ...inputStyle, width: 48 }}
+                onChange={(e) => updateRoute(selectedRouteIdx, { ...selectedRoute, startLayer: Math.min(Math.max(Number(e.target.value) || 0, 0), 2) })}
+              />
+              <div style={{ display: "flex" }}>
+                {[
+                  { label: "＋", diff: 1 },
+                  { label: "－", diff: -1 },
+                ].map(b => (
+                  <button
+                    key={`changeStarLayer_${b.label}`}
+                    style={moveButtonStyle}
+                    onClick={() => updateRoute(selectedRouteIdx, { ...selectedRoute, startLayer: Math.min(Math.max(selectedRoute.startLayer + b.diff, 0), 2) })}
+                  >
+                    {b.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
         ) : <></>}
       </div>
     </div>
@@ -1084,12 +1231,14 @@ const ColorPicker = ({
 };
 
 type RoutePathProps = {
-  ref: React.Ref<SVGPathElement>;
+  ref?: React.Ref<SVGPathElement>;
   startDirection: number;
   points: RoutePoint[];
   color: HSV;
   width: number;
   offset: XY;
+  from?: number;
+  to?: number;
 };
 
 const isSameObj = <T,>(prev: T, next: T) => {
@@ -1100,7 +1249,7 @@ const isSameObj = <T,>(prev: T, next: T) => {
 const RoutePath = React.memo((props: RoutePathProps) => (
   <path
     ref={props.ref}
-    d={calcPath(props.startDirection, props.points, props.offset).svgPath}
+    d={calcPath(props.startDirection, props.points, props.offset, props.from, props.to).svgPath}
     stroke={rgb(props.color)}
     strokeWidth={props.width}
     fill="none"
