@@ -936,7 +936,7 @@ export default function Rails() {
 
               {/* routes */}
               {routes.map((route, i) => route.startDirection !== null && (
-                <RoutePath
+                <SvgRoutePath
                   key={`routePath_${i}`}
                   ref={elm => { routePathRefs.current[i] = elm; }}
                   startDirection={route.startDirection}
@@ -952,7 +952,7 @@ export default function Rails() {
                 const route = routes[i];
                 const totalLength = routePathLengths[i];
                 return ranges.map((range, j) => route.startDirection !== null && totalLength !== null && range.layer !== 1 && (
-                  <RoutePath
+                  <SvgRoutePath
                     key={`routeLayer_${i}_${j}`}
                     startDirection={route.startDirection}
                     points={route.points}
@@ -967,7 +967,7 @@ export default function Rails() {
 
               {/* station preview */}
               {mode == "station" && selectedRoute && selectedPathData && previewPoint && (
-                <StationPath
+                <SvgStationPath
                   id="station_preview"
                   svgPath={selectedPathData.svgPath}
                   distance={previewPoint.distance}
@@ -984,7 +984,7 @@ export default function Rails() {
                 const pathData = routePathData[i];
                 const isSelected = mode == "station_edit" && selectedStationIdx && selectedStationIdx.routeIdx == i && selectedStationIdx.stationIdx == j;
                 return pathData && (
-                  <StationPath
+                  <SvgStationPath
                     key={key}
                     id={key}
                     svgPath={pathData.svgPath}
@@ -1010,7 +1010,7 @@ export default function Rails() {
 
               {/* layer change point */}
               {mode == "layer" && selectedRoute && selectedPathData && previewPoint && (
-                <LayerChangePoint
+                <SvgLayerChangePoint
                   id={"layerChange_preview"}
                   svgPath={selectedPathData.svgPath}
                   distance={previewPoint.distance}
@@ -1028,7 +1028,7 @@ export default function Rails() {
                 const pathData = routePathData[i];
                 const route = routes[i];
                 return pathData && (
-                  <LayerChangePoint
+                  <SvgLayerChangePoint
                     key={key}
                     id={key}
                     svgPath={pathData.svgPath}
@@ -1329,7 +1329,7 @@ export default function Rails() {
                   { label: "地上", value: 1 },
                   { label: "高架", value: 2 },
                 ].map(b => (
-                  <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                  <label key={`startLayer_${b.label}`} style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
                     <input
                       type="radio"
                       checked={selectedRoute.startLayer == b.value}
@@ -1492,15 +1492,17 @@ const isSameObj = <T,>(prev: T, next: T) => {
     (Object.keys(prev) as (keyof T)[]).every((key) => Object.is(prev[key], next[key]))
 };
 
-const RoutePath = React.memo((props: RoutePathProps) => (
-  <path
-    ref={props.ref}
-    d={calcPath(props.startDirection, props.points, props.offset, props.from, props.to).svgPath}
-    stroke={rgb(props.color)}
-    strokeWidth={props.width}
-    fill="none"
-  />
-), (prev, next) => {
+const SvgRoutePath = React.memo(function SvgRoutePath(props: RoutePathProps) {
+  return (
+    <path
+      ref={props.ref}
+      d={calcPath(props.startDirection, props.points, props.offset, props.from, props.to).svgPath}
+      stroke={rgb(props.color)}
+      strokeWidth={props.width}
+      fill="none"
+    />
+  );
+}, (prev, next) => {
   for (const key of Object.keys(prev) as (keyof RoutePathProps)[]) {
     if (key === "points" || key === "color" || key == "offset") continue;
     if (!Object.is(prev[key], next[key])) {
@@ -1536,7 +1538,7 @@ type StationPathProps = {
   style?: React.CSSProperties;
 };
 
-const StationPath = React.memo((props: StationPathProps) => {
+const SvgStationPath = React.memo(function SvgStationPath(props: StationPathProps) {
   const pathElm = document.createElementNS("http://www.w3.org/2000/svg", "path");
   pathElm.setAttribute("d", props.svgPath);
   const totalLength = pathElm.getTotalLength();
@@ -1639,7 +1641,7 @@ type LayerChangePointProps = {
   style?: React.CSSProperties;
 };
 
-const LayerChangePoint = React.memo((props: LayerChangePointProps) => {
+const SvgLayerChangePoint = React.memo(function SvgLayerChangePoint(props: LayerChangePointProps) {
   const pathElm = document.createElementNS("http://www.w3.org/2000/svg", "path");
   pathElm.setAttribute("d", props.svgPath);
   const totalLength = pathElm.getTotalLength();
