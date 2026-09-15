@@ -6,6 +6,7 @@ import {
   Close,
   Delete,
   EditLocationAlt,
+  FileDownload,
   FileOpen,
   Layers,
   ModeEdit,
@@ -631,6 +632,40 @@ export default function Rails() {
     reader.readAsDataURL(file);
   };
 
+  const toPng = () => {
+    const svg = document.querySelector("#main-svg") as SVGSVGElement;
+    if (!svg) return;
+    const clone = svg.cloneNode(true) as SVGSVGElement;
+    clone.setAttribute("width", String(size.x));
+    clone.setAttribute("height", String(size.y));
+    clone.setAttribute("viewBox", `0 0 ${size.x} ${size.y}`);
+    const serializer = new XMLSerializer();
+    const svgString = serializer.serializeToString(clone);
+    const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(svgBlob);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = size.x;
+      canvas.height = size.y;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const pngUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = pngUrl;
+        a.download = fileHandle ? fileHandle.name.replace(/\.json$/, "") + ".png" : "rails.png";
+        a.click();
+        URL.revokeObjectURL(pngUrl);
+      }, "image/png");
+    };
+    img.src = url;
+  };
+
   const previewRoute = selectedRoute && mouseXY && mode == "draw" ? calcNextRoute(selectedRoute, meter(mouseXY.x), meter(mouseXY.y), offset, 2000) : null;
   const previewPath = previewRoute && previewRoute.startDirection !== null ? calcPath(previewRoute.startDirection, previewRoute.points, offset) : null;
   const previewPoint = selectedPath && mouseXY && (mode == "station" || mode == "layer") ? calcNearestPathPoint(selectedPath, mouseXY.x, mouseXY.y, mode == "station" ? px(stationLength) : 0) : null;
@@ -670,634 +705,644 @@ export default function Rails() {
   });
 
   return (
-    <div style={{ display: "flex", alignItems: "flex-start", marginTop: 80 }}>
-      <div style={{ display: "flex", flexDirection: "column", minWidth: 240, borderTop: "solid 1px #aab" }}>
-        {/* routes menu */}
-        <div style={{ display: "flex", alignItems: "center", borderBottom: "solid 1px #aab" }}>
-          {[
-            { onClick: addRoute, OpeIcon: Add },
-            { onClick: () => setRouteDeletionMode(prev => !prev), OpeIcon: Delete, bgColor: routeDeletionMode ? "#fcc" : null }
-          ].map((o, i) => {
-            const key = `routeOperation_${i}`;
+    <div style={{ display: "flex", flexDirection: "column", marginTop: 80, gap: 16, backgroundColor: "#fff" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "16px 16px 0" }}>
+        <div style={{ height: 24, fontSize: 18 }}>{fileHandle?.name || "新規作成"}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div onClick={openFile} style={{ display: "flex", alignItems: "center", color: "#48f", cursor: "pointer" }} title="開く">
+            <FileOpen style={{ fontSize: 24 }} />
+          </div>
+          <div onClick={save} style={{ display: "flex", alignItems: "center", color: "#48f", cursor: "pointer" }} title="保存">
+            <Save style={{ fontSize: 24 }} />
+          </div>
+          <div style={{ color: saved ? "#4a4" : "#888", fontSize: 10, backgroundColor: saved ? "#cfc" : "#eee", padding: "0 2px", borderRadius: 4 }}>
+            {saved ? "保存済" : "未保存"}
+          </div>
+          {fileHandle && (
+            <label style={{ display: "flex", alignItems: "center", cursor: fileHandle ? "pointer" : "default", fontSize: 12 }}>
+              <input
+                type="checkbox"
+                checked={!!fileHandle && autoSave}
+                onChange={() => setAutoSave(prev => !prev)}
+                style={{ cursor: fileHandle ? "pointer" : "default" }}
+                disabled={!fileHandle}
+              />
+              自動保存
+            </label>
+          )}
+          {fileReadFailed && (
+            <div style={{ fontSize: 10, color: "#f44" }}>読込失敗</div>
+          )}
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "flex-start" }}>
+        <div style={{ display: "flex", flexDirection: "column", minWidth: 240, borderTop: "solid 1px #aab" }}>
+          {/* routes menu */}
+          <div style={{ display: "flex", alignItems: "center", borderBottom: "solid 1px #aab" }}>
+            {[
+              { onClick: addRoute, OpeIcon: Add },
+              { onClick: () => setRouteDeletionMode(prev => !prev), OpeIcon: Delete, bgColor: routeDeletionMode ? "#fcc" : null }
+            ].map((o, i) => {
+              const key = `routeOperation_${i}`;
+              return (
+                <div
+                  key={key}
+                  style={{
+                    borderRight: "solid 1px #ccd",
+                    padding: 4,
+                    display: "flex",
+                    alignItems: "center",
+                    color: "#666",
+                    backgroundColor: o.bgColor || (isHovered(key) ? "#eef8ff" : "transparent"),
+                    cursor: "pointer",
+                  }}
+                  onClick={o.onClick}
+                  onMouseEnter={() => setHoveredAt(key)}
+                  onMouseLeave={() => setHoveredAt(null)}
+                >
+                  <o.OpeIcon style={{ fontSize: 16 }} />
+                </div>
+              );
+            })}
+          </div>
+          {/* routes list */}
+          {routes.map((route, i) => {
+            const key = `routeSelect_${i}`;
             return (
               <div
                 key={key}
                 style={{
-                  borderRight: "solid 1px #ccd",
-                  padding: 4,
                   display: "flex",
                   alignItems: "center",
-                  color: "#666",
-                  backgroundColor: o.bgColor || (isHovered(key) ? "#eef8ff" : "transparent"),
-                  cursor: "pointer",
+                  gap: "8px",
+                  borderBottom: "solid 1px #ccc",
+                  backgroundColor: i == selectedRouteIdx ? "#ddf4ff" : isHovered(key) ? "#eef8ff" : "transparent",
+                  padding: "8px",
                 }}
-                onClick={o.onClick}
+                onClick={() => setSelectedRouteIdx(i)}
                 onMouseEnter={() => setHoveredAt(key)}
                 onMouseLeave={() => setHoveredAt(null)}
               >
-                <o.OpeIcon style={{ fontSize: 16 }} />
-              </div>
-            );
-          })}
-          <div style={{ display: "flex", alignItems: "center", gap: 4, paddingLeft: 8 }}>
-            <div onClick={openFile} style={{ display: "flex", alignItems: "center", color: "#48f", cursor: "pointer" }}>
-              <FileOpen style={{ fontSize: 18 }} />
-            </div>
-            <div onClick={save} style={{ display: "flex", alignItems: "center", color: "#48f", cursor: "pointer" }}>
-              <Save style={{ fontSize: 18 }} />
-            </div>
-            <div style={{ color: saved ? "#4a4" : "#888", fontSize: 10, backgroundColor: saved ? "#cfc" : "#eee", padding: "0 2px", borderRadius: 4 }}>
-              {saved ? "保存済" : "未保存"}
-            </div>
-            {fileHandle && (
-              <label style={{ display: "flex", alignItems: "center", cursor: fileHandle ? "pointer" : "default", fontSize: 12 }}>
-                <input
-                  type="checkbox"
-                  checked={!!fileHandle && autoSave}
-                  onChange={() => setAutoSave(prev => !prev)}
-                  style={{ cursor: fileHandle ? "pointer" : "default" }}
-                  disabled={!fileHandle}
-                />
-                自動
-              </label>
-            )}
-            {fileReadFailed && (
-              <div style={{ fontSize: 10, color: "#f44" }}>読込失敗</div>
-            )}
-          </div>
-        </div>
-        {/* routes list */}
-        {routes.map((route, i) => {
-          const key = `routeSelect_${i}`;
-          return (
-            <div
-              key={key}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                borderBottom: "solid 1px #ccc",
-                backgroundColor: i == selectedRouteIdx ? "#ddf4ff" : isHovered(key) ? "#eef8ff" : "transparent",
-                padding: "8px",
-              }}
-              onClick={() => setSelectedRouteIdx(i)}
-              onMouseEnter={() => setHoveredAt(key)}
-              onMouseLeave={() => setHoveredAt(null)}
-            >
-              <div
-                style={{ position: "relative", width: 24, height: 24, backgroundColor: rgb(route.color), borderRadius: "50%", cursor: "pointer" }}
-                onClick={() => setRouteColorEditing({ idx: i, color: { ...route.color } })}
-              >
-                {routeColorEditing && routeColorEditing.idx == i && (
-                  <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, boxShadow: "2px 2px 4px #aaa", zIndex: 10 }} onClick={e => e.stopPropagation()}>
-                    <ColorPicker
-                      color={routeColorEditing.color}
-                      onChange={v => setRouteColorEditing({ idx: i, color: v })}
-                      onApply={applyRouteColor}
-                      onClose={() => setRouteColorEditing(null)}
-                    />
-                  </div>
-                )}
-              </div>
-              
-              {!routeDeletionMode && routeNameEditing && routeNameEditing?.idx == i ? (
-                <>
-                  <input
-                    ref={routeNameBoxRef}
-                    type="text"
-                    style={{
-                      ...inputStyle,
-                      width: 120,
-                    }}
-                    value={routeNameEditing.name}
-                    onChange={(e) => setRouteNameEditing({ idx: i, name: e.target.value })}
-                    onKeyDown={(e) => { if (e.key == "Enter") { applyRouteName(); } if (e.key == "Escape") { setRouteNameEditing(null); } }}
-                  />
-                  <div style={{ marginLeft: "auto", display: "flex", gap: 8, color: "#48f" }}>
-                    <Close fontSize="medium" style={{ cursor: "pointer" }} onClick={() => setRouteNameEditing(null)} />
-                    <Check fontSize="medium" style={{ cursor: "pointer" }} onClick={applyRouteName} />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div style={{ fontSize: 14 }}>{route.name}</div>
-                  {routeDeletionMode ? (
-                    <div
-                      style={{ marginLeft: "auto", display: "flex", alignItems: "center", cursor: "pointer" }}
-                      onClick={(e) => { e.stopPropagation(); deleteRoute(i); }}
-                    >
-                      <Delete fontSize="small" style={{ color: routes.length > 1 ? "#f44" : "#eaa" }} />
-                    </div>
-                  ) : (
-                    <div
-                      style={{ marginLeft: "auto", display: "flex", alignItems: "center", cursor: "pointer" }}
-                      onClick={() => setRouteNameEditing({ idx: i, name: route.name })}
-                    >
-                      <ModeEdit fontSize="small" style={{ color: "#666" }} />
+                <div
+                  style={{ position: "relative", width: 24, height: 24, backgroundColor: rgb(route.color), borderRadius: "50%", cursor: "pointer" }}
+                  onClick={() => setRouteColorEditing({ idx: i, color: { ...route.color } })}
+                >
+                  {routeColorEditing && routeColorEditing.idx == i && (
+                    <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, boxShadow: "2px 2px 4px #aaa", zIndex: 10 }} onClick={e => e.stopPropagation()}>
+                      <ColorPicker
+                        color={routeColorEditing.color}
+                        onChange={v => setRouteColorEditing({ idx: i, color: v })}
+                        onApply={applyRouteColor}
+                        onClose={() => setRouteColorEditing(null)}
+                      />
                     </div>
                   )}
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", border: "solid 1px #aab" }}>
-        {/* mode */}
-        <div style={{ display: "flex", alignItems: "center", borderBottom: "solid 1px #aab" }}>
-          {[
-            { mode: "view", ModeIcon: PanTool },
-            { mode: "draw", ModeIcon: ModeEdit },
-            { mode: "station", ModeIcon: AddLocationAlt },
-            { mode: "station_edit", ModeIcon: EditLocationAlt },
-            { mode: "layer", ModeIcon: Layers },
-          ].map(m => {
-            const key = `modeSelect_${m.mode}`;
-            return (
-              <div
-                key={key}
-                style={{
-                  borderRight: "solid 1px #ccd",
-                  padding: 4,
-                  display: "flex",
-                  alignItems: "center",
-                  color: "#666",
-                  backgroundColor: mode == m.mode ? "#ddf4ff" : isHovered(key) ? "#eef8ff" : "transparent",
-                  cursor: "pointer",
-                }}
-                onClick={() => setMode(m.mode as Mode)}
-                onMouseEnter={() => setHoveredAt(key)}
-                onMouseLeave={() => setHoveredAt(null)}
-              >
-                <m.ModeIcon style={{ fontSize: 16 }} />
+                </div>
+                
+                {!routeDeletionMode && routeNameEditing && routeNameEditing?.idx == i ? (
+                  <>
+                    <input
+                      ref={routeNameBoxRef}
+                      type="text"
+                      style={{
+                        ...inputStyle,
+                        width: 120,
+                      }}
+                      value={routeNameEditing.name}
+                      onChange={(e) => setRouteNameEditing({ idx: i, name: e.target.value })}
+                      onKeyDown={(e) => { if (e.key == "Enter") { applyRouteName(); } if (e.key == "Escape") { setRouteNameEditing(null); } }}
+                    />
+                    <div style={{ marginLeft: "auto", display: "flex", gap: 8, color: "#48f" }}>
+                      <Close fontSize="medium" style={{ cursor: "pointer" }} onClick={() => setRouteNameEditing(null)} />
+                      <Check fontSize="medium" style={{ cursor: "pointer" }} onClick={applyRouteName} />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 14 }}>{route.name}</div>
+                    {routeDeletionMode ? (
+                      <div
+                        style={{ marginLeft: "auto", display: "flex", alignItems: "center", cursor: "pointer" }}
+                        onClick={(e) => { e.stopPropagation(); deleteRoute(i); }}
+                      >
+                        <Delete fontSize="small" style={{ color: routes.length > 1 ? "#f44" : "#eaa" }} />
+                      </div>
+                    ) : (
+                      <div
+                        style={{ marginLeft: "auto", display: "flex", alignItems: "center", cursor: "pointer" }}
+                        onClick={() => setRouteNameEditing({ idx: i, name: route.name })}
+                      >
+                        <ModeEdit fontSize="small" style={{ color: "#666" }} />
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             );
           })}
         </div>
-        {/* svg */}
-        <div onContextMenu={e => e.preventDefault()}>
-          <svg
-            width={FRAME_WIDTH}
-            height={FRAME_HEIGHT}
-            viewBox={`${viewboxTL.x} ${viewboxTL.y} ${FRAME_WIDTH / (2 ** zoom)} ${FRAME_HEIGHT / (2 ** zoom)}`}
-            onMouseDown={onClickSvg}
-            onMouseMove={onMouseMoveSvg}
-            onMouseUp={onLeaveSvg}
-            onMouseLeave={onLeaveSvg}
-            onWheel={onWheelSvg}
-            style={{ 
-              backgroundColor: "#444",
-              cursor: mode == "view" ? (dragStartedAt ? "grabbing" : "grab") :
-                mode == "draw" ? "crosshair" :
-                mode == "station" ? "pointer" :
-                mode == "layer" ? "pointer" : "default",
-            }}
-          >
-            <rect x={0} y={0} width={size.x} height={size.y} fill="#fff" />
-            {bgImage && (
-              <image href={bgImage} x={0} y={0} />
-            )}
 
-            {/* grid */}
-            {showGrid && (
-              <>
-                {Array.from({ length: Math.floor(meter(size.x) / 1000) }).map((_, i) => {
-                  const x = px(1000 * (i + 1));
-                  return <path key={`grid_xl_${i}`} d={`M${x} 0 ${x} ${size.y}`} stroke="#ccc" strokeWidth={1} fill="none" />;
-                })}
-                {zoom > -2 && Array.from({ length: Math.floor(meter(size.x) / 100) }).map((_, i) => {
-                  const x = px(100 * (i + 1));
-                  return <path key={`grid_yl_${i}`} d={`M${x} 0 ${x} ${size.y}`} stroke="#ddd" strokeWidth={0.5} fill="none" />;
-                })}
-                {Array.from({ length: Math.floor(meter(size.y) / 1000) }).map((_, i) => {
-                  const y = px(1000 * (i + 1));
-                  return <path key={`grid_xs_${i}`} d={`M0 ${y} ${size.x} ${y}`} stroke="#ccc" strokeWidth={1} fill="none" />;
-                })}
-                {zoom > -2 && Array.from({ length: Math.floor(meter(size.y) / 100) }).map((_, i) => {
-                  const y = px(100 * (i + 1));
-                  return <path key={`grid_ys_${i}`} d={`M0 ${y} ${size.x} ${y}`} stroke="#ddd" strokeWidth={0.5} fill="none" />;
-                })}
-              </>
-            )}
+        <div style={{ display: "flex", flexDirection: "column", border: "solid 1px #aab" }}>
+          {/* mode */}
+          <div style={{ display: "flex", alignItems: "center", borderBottom: "solid 1px #aab" }}>
+            {[
+              { mode: "view", ModeIcon: PanTool },
+              { mode: "draw", ModeIcon: ModeEdit },
+              { mode: "station", ModeIcon: AddLocationAlt },
+              { mode: "station_edit", ModeIcon: EditLocationAlt },
+              { mode: "layer", ModeIcon: Layers },
+            ].map(m => {
+              const key = `modeSelect_${m.mode}`;
+              return (
+                <div
+                  key={key}
+                  style={{
+                    borderRight: "solid 1px #ccd",
+                    padding: 4,
+                    display: "flex",
+                    alignItems: "center",
+                    color: "#666",
+                    backgroundColor: mode == m.mode ? "#ddf4ff" : isHovered(key) ? "#eef8ff" : "transparent",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => setMode(m.mode as Mode)}
+                  onMouseEnter={() => setHoveredAt(key)}
+                  onMouseLeave={() => setHoveredAt(null)}
+                >
+                  <m.ModeIcon style={{ fontSize: 16 }} />
+                </div>
+              );
+            })}
+          </div>
+          {/* svg */}
+          <div onContextMenu={e => e.preventDefault()}>
+            <svg
+              id={"main-svg"}
+              width={FRAME_WIDTH}
+              height={FRAME_HEIGHT}
+              viewBox={`${viewboxTL.x} ${viewboxTL.y} ${FRAME_WIDTH / (2 ** zoom)} ${FRAME_HEIGHT / (2 ** zoom)}`}
+              onMouseDown={onClickSvg}
+              onMouseMove={onMouseMoveSvg}
+              onMouseUp={onLeaveSvg}
+              onMouseLeave={onLeaveSvg}
+              onWheel={onWheelSvg}
+              style={{ 
+                backgroundColor: "#444",
+                cursor: mode == "view" ? (dragStartedAt ? "grabbing" : "grab") :
+                  mode == "draw" ? "crosshair" :
+                  mode == "station" ? "pointer" :
+                  mode == "layer" ? "pointer" : "default",
+              }}
+            >
+              <rect x={0} y={0} width={size.x} height={size.y} fill="#fff" />
+              {bgImage && (
+                <image href={bgImage} x={0} y={0} />
+              )}
 
-            {/* draw preview */}
-            {mode == "draw" && mouseXY && selectedRoute.points.length == 0 && (
-              <circle cx={mouseXY.x} cy={mouseXY.y} r={8} fill={rgb(selectedRoute.color)} />
-            )}
-            {mode == "draw" && previewPath && (
-              <path
-                d={previewPath.svgPath}
-                stroke="#888"
-                strokeWidth={1}
-                fill="none"
-              />
-            )}
+              {/* grid */}
+              {showGrid && (
+                <>
+                  {Array.from({ length: Math.floor(meter(size.x) / 1000) }).map((_, i) => {
+                    const x = px(1000 * (i + 1));
+                    return <path key={`grid_xl_${i}`} d={`M${x} 0 ${x} ${size.y}`} stroke="#ccc" strokeWidth={1} fill="none" />;
+                  })}
+                  {zoom > -2 && Array.from({ length: Math.floor(meter(size.x) / 100) }).map((_, i) => {
+                    const x = px(100 * (i + 1));
+                    return <path key={`grid_yl_${i}`} d={`M${x} 0 ${x} ${size.y}`} stroke="#ddd" strokeWidth={0.5} fill="none" />;
+                  })}
+                  {Array.from({ length: Math.floor(meter(size.y) / 1000) }).map((_, i) => {
+                    const y = px(1000 * (i + 1));
+                    return <path key={`grid_xs_${i}`} d={`M0 ${y} ${size.x} ${y}`} stroke="#ccc" strokeWidth={1} fill="none" />;
+                  })}
+                  {zoom > -2 && Array.from({ length: Math.floor(meter(size.y) / 100) }).map((_, i) => {
+                    const y = px(100 * (i + 1));
+                    return <path key={`grid_ys_${i}`} d={`M0 ${y} ${size.x} ${y}`} stroke="#ddd" strokeWidth={0.5} fill="none" />;
+                  })}
+                </>
+              )}
 
-            {/* routes */}
-            {routes.map((route, i) => route.startDirection !== null && (
-              <RoutePath
-                key={`routePath_${i}`}
-                ref={elm => { routePathRefs.current[i] = elm; }}
-                startDirection={route.startDirection}
-                points={route.points}
-                color={route.color}
-                width={route.width}
-                offset={offset}
-              />
-            ))}
+              {/* draw preview */}
+              {mode == "draw" && mouseXY && selectedRoute.points.length == 0 && (
+                <circle cx={mouseXY.x} cy={mouseXY.y} r={8} fill={rgb(selectedRoute.color)} />
+              )}
+              {mode == "draw" && previewPath && (
+                <path
+                  d={previewPath.svgPath}
+                  stroke="#888"
+                  strokeWidth={1}
+                  fill="none"
+                />
+              )}
 
-            {/* routes layer */}
-            {layerRanges.map((ranges, i) => {
-              const route = routes[i];
-              const totalLength = routePathLengths[i];
-              return ranges.map((range, j) => route.startDirection !== null && totalLength !== null && range.layer !== 1 && (
+              {/* routes */}
+              {routes.map((route, i) => route.startDirection !== null && (
                 <RoutePath
-                  key={`routeLayer_${i}_${j}`}
+                  key={`routePath_${i}`}
+                  ref={elm => { routePathRefs.current[i] = elm; }}
                   startDirection={route.startDirection}
                   points={route.points}
-                  color={lighten(route.color, range.layer >= 2 ? 1 : -1)}
-                  width={route.width / 2}
+                  color={route.color}
+                  width={route.width}
                   offset={offset}
-                  from={meter(Math.min(range.from, totalLength))}
-                  to={meter(Math.min(range.to, totalLength))}
                 />
-              ))
-            })}
-
-            {/* station preview */}
-            {mode == "station" && selectedRoute && selectedPathData && previewPoint && (
-              <StationPath
-                id="station_preview"
-                svgPath={selectedPathData.svgPath}
-                distance={previewPoint.distance}
-                length={stationLength}
-                color={selectedRoute.color}
-                width={stationWidth}
-                opacity={0.4}
-              />
-            )}
-
-            {/* stations */}
-            {routes.map((route, i) => route.stations.map((station, j) => {
-              const key = `station_${i}_${j}`;
-              const pathData = routePathData[i];
-              const isSelected = mode == "station_edit" && selectedStationIdx && selectedStationIdx.routeIdx == i && selectedStationIdx.stationIdx == j;
-              return pathData && (
-                <StationPath
-                  key={key}
-                  id={key}
-                  svgPath={pathData.svgPath}
-                  distance={station.distance}
-                  length={station.length}
-                  color={isSelected ? lighten(route.color, 2) : isHovered(key) ? lighten(route.color, 1) : route.color}
-                  width={station.width}
-                  left={station.left}
-                  platform={station.platform}
-                  name={station.name}
-                  number={station.number}
-                  nameLabelPosition={station.nameLabelPosition}
-                  numberLabelPosition={station.numberLabelPosition}
-                  onClick={onClickStation}
-                  setHoveredAt={setHoveredAt}
-                  routeIdx={i}
-                  stationIdx={j}
-                  mouseEnterEnabled={mode == "station_edit"}
-                  style={{ cursor: mode == "station_edit" && !isSelected ? "pointer" : "default" }}
-                />
-              );
-            }))}
-
-            {/* layer change point */}
-            {mode == "layer" && selectedRoute && selectedPathData && previewPoint && (
-              <LayerChangePoint
-                id={"layerChange_preview"}
-                svgPath={selectedPathData.svgPath}
-                distance={previewPoint.distance}
-                fromLayer={getLayerAtLength(selectedRoute.startLayer, selectedRoute.layerChangePoints, previewPoint.distance)}
-                upper={upper}
-                color={selectedRoute.color}
-                width={selectedRoute.width * 0.6}
-                opacity={0.6}
-              />
-            )}
-
-            {/* layer changes */}
-            {sortedLayerChangePoints.map((points, i) => points.map((point, j) => {
-              const key = `layerChange_${i}_${j}`;
-              const pathData = routePathData[i];
-              const route = routes[i];
-              return pathData && (
-                <LayerChangePoint
-                  key={key}
-                  id={key}
-                  svgPath={pathData.svgPath}
-                  distance={point.distance}
-                  fromLayer={point.fromLayer}
-                  upper={point.upper}
-                  color={isHovered(key) ? lighten(route.color, 1) : route.color}
-                  width={route.width * 0.6}
-                  onClick={onClickLayerChange}
-                  setHoveredAt={setHoveredAt}
-                  routeIdx={i}
-                  stationIdx={j}
-                  mouseEnterEnabled={mode == "layer"}
-                  style={{ cursor: mode == "layer" ? cursorDelete : "default" }}
-                />
-              );
-            }))}
-          </svg>
-        </div>
-      </div>
-
-      {/* info */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, border: "solid 1px #aab", width: 480, height: 640, padding: 8, fontSize: 12 }}>
-        {selectedPath && <div>全長 {Math.round(meter(selectedPath.getTotalLength()) * 10 / 1000) / 10 } km</div>}
-        {mode == "view" ? (
-          <>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 64 }}>サイズ(px)</div>
-              <input
-                type="text"
-                value={size.x}
-                style={{ ...inputStyle, width: 48 }}
-                onChange={(e) => setSize(prev => ({ ...prev, x: Math.max(Number(e.target.value) || 0) }))}
-              />
-              <div>×</div>
-              <input
-                type="text"
-                value={size.y}
-                style={{ ...inputStyle, width: 48 }}
-                onChange={(e) => setSize(prev => ({ ...prev, y: Math.max(Number(e.target.value) || 0) }))}
-              />
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 64 }}>枠移動(px)</div>
-              <div>右方向</div>
-              <input
-                type="text"
-                value={offset.x}
-                style={{ ...inputStyle, width: 48 }}
-                onChange={(e) => setOffset(prev => ({ ...prev, x: Number(e.target.value) || 0 }))}
-              />
-              <div>下方向</div>
-              <input
-                type="text"
-                value={offset.y}
-                style={{ ...inputStyle, width: 48 }}
-                onChange={(e) => setOffset(prev => ({ ...prev, y: Number(e.target.value) }))}
-              />
-            </div>
-            <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-              <input type="checkbox" checked={showGrid} onChange={() => setShowGrid(prev => !prev)} style={{ cursor: "pointer" }} />
-              グリッドを表示
-            </label>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div>背景画像</div>
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                onChange={handleBgImage}
-              />
-            </div>
-          </>
-        ) :  mode == "draw" ? (
-          <>
-            {previewPath && previewPath.lastRadius !== null && selectedRoute.points[selectedRoute.points.length - 1].length !== null && <div>半径 {Math.abs(Math.round(previewPath.lastRadius))} m</div>}
-            <button style={{ width: 48 }} onClick={() => reverseRoute(selectedRouteIdx)}>反転</button>
-          </>
-        ) : mode == "station" ? (
-          <>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 48 }}>長さ(m)</div>
-              <input
-                type="text"
-                value={stationLength}
-                style={{ ...inputStyle, width: 48 }}
-                onChange={(e) => setStationLength(Math.max(Number(e.target.value) || 0, 0))}
-              />
-              <div style={{ display: "flex" }}>
-                {[
-                  { label: "＋", diff: 1 },
-                  { label: "－", diff: -1 },
-                ].map(b => (
-                  <button
-                    key={`changeLength_${b.label}`}
-                    style={moveButtonStyle}
-                    onClick={() => setStationLength(Math.max(stationLength + b.diff, 0))}
-                  >
-                    {b.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 48 }}>幅(m)</div>
-              <input
-                type="text"
-                value={stationWidth}
-                style={{ ...inputStyle, width: 48 }}
-                onChange={(e) => setStationWidth(Math.max(Number(e.target.value) || 0, 0))}
-              />
-              <div style={{ display: "flex" }}>
-                {[
-                  { label: "＋", diff: 1 },
-                  { label: "－", diff: -1 },
-                ].map(b => (
-                  <button
-                    key={`changeWidth_${b.label}`}
-                    style={moveButtonStyle}
-                    onClick={() => setStationWidth(Math.max(stationWidth + b.diff, 0))}
-                  >
-                    {b.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {previewFromPrev !== null && <div>前の駅から {Math.round(meter(previewFromPrev) * 10 / 1000) / 10 } km</div>}
-            {previewToNext !== null && <div>次の駅まで {Math.round(meter(previewToNext) * 10 / 1000) / 10 } km</div>}
-          </>
-        ) : mode == "station_edit" ? selectedStationIdx && selectedStation && (
-          <>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 120 }}>駅名</div>
-              <input
-                type="text"
-                value={selectedStation.name}
-                style={{ ...inputStyle, width: 120 }}
-                onChange={(e) => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { name: e.target.value })}
-              />
-              <div style={{ display: "flex" }}>
-                {[
-                  { label: "≪", diff: { x: -30, y: 0 } },
-                  { label: "≫", diff: { x: 30, y: 0 } },
-                  { label: "←", diff: { x: -3, y: 0 } },
-                  { label: "→", diff: { x: 3, y: 0 } },
-                  { label: "↑", diff: { x: 0, y: -3 } },
-                  { label: "↓", diff: { x: 0, y: 3 } },
-                ].map(b => (
-                  <button
-                    key={`moveName_${b.label}`}
-                    style={moveButtonStyle}
-                    onClick={() => moveStationLabel(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, "name", b.diff)}
-                  >
-                    {b.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 120 }}>番号</div>
-              <input
-                type="text"
-                value={selectedStation.number}
-                style={{ ...inputStyle, width: 120 }}
-                onChange={(e) => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { number: e.target.value })}
-              />
-              <div style={{ display: "flex" }}>
-                {[
-                  { label: "←", diff: { x: -3, y: 0 } },
-                  { label: "→", diff: { x: 3, y: 0 } },
-                  { label: "↑", diff: { x: 0, y: -3 } },
-                  { label: "↓", diff: { x: 0, y: 3 } },
-                ].map(b => (
-                  <button
-                    key={`moveNumber_${b.label}`}
-                    style={moveButtonStyle}
-                    onClick={() => moveStationLabel(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, "number", b.diff)}
-                  >
-                    {b.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 120 }}>長さ(m)</div>
-              <input
-                type="text"
-                value={selectedStation.length}
-                style={{ ...inputStyle, width: 48 }}
-                onChange={(e) => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { length: Math.max(Number(e.target.value) || 0, 0) })}
-              />
-              <div style={{ display: "flex" }}>
-                {[
-                  { label: "＋", diff: 1 },
-                  { label: "－", diff: -1 },
-                ].map(b => (
-                  <button
-                    key={`changeLength_${b.label}`}
-                    style={moveButtonStyle}
-                    onClick={() => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { length: Math.max(selectedStation.length + b.diff, 0) })}
-                  >
-                    {b.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 120 }}>幅(m)</div>
-              <input
-                type="text"
-                value={selectedStation.width}
-                style={{ ...inputStyle, width: 48 }}
-                onChange={(e) => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { width: Math.max(Number(e.target.value) || 0, 0) })}
-              />
-              <div style={{ display: "flex" }}>
-                {[
-                  { label: "＋", diff: 1 },
-                  { label: "－", diff: -1 },
-                ].map(b => (
-                  <button
-                    key={`changeWidth_${b.label}`}
-                    style={moveButtonStyle}
-                    onClick={() => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { width: Math.max(selectedStation.width + b.diff, 0) })}
-                  >
-                    {b.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 120 }}>中心からのずれ(m)</div>
-              <input
-                type="text"
-                value={selectedStation.left}
-                style={{ ...inputStyle, width: 48 }}
-                onChange={(e) => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { left: Math.min(Math.max(Number(e.target.value) || 0, -selectedStation.width / 2), selectedStation.width / 2) })}
-              />
-              <div style={{ display: "flex" }}>
-                {[
-                  { label: "＋", diff: 1 },
-                  { label: "－", diff: -1 },
-                ].map(b => (
-                  <button
-                    key={`changeLeft_${b.label}`}
-                    style={moveButtonStyle}
-                    onClick={() => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { left: Math.min(Math.max(selectedStation.left + b.diff, -selectedStation.width / 2), selectedStation.width / 2) })}
-                  >
-                    {b.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 120 }}>ホーム(0/1)</div>
-              <input
-                type="text"
-                value={selectedStation.platform}
-                style={{ ...inputStyle, width: 120 }}
-                onChange={(e) => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { platform: Array.from(e.target.value).filter(c => c == "0" || c == "1").join("") })}
-              />
-              <div style={{ display: "flex" }}>
-                {["1001", "010", "01010"].map(b => (
-                  <button
-                    key={`changePlatform_${b}`}
-                    style={{ ...moveButtonStyle, width: 56 }}
-                    onClick={() => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { platform: b })}
-                  >
-                    {b}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {selectedFromPrev !== null && <div>前の駅から {Math.round(meter(selectedFromPrev) * 10 / 1000) / 10 } km</div>}
-            {selectedToNext !== null && <div>次の駅まで {Math.round(meter(selectedToNext) * 10 / 1000) / 10 } km</div>}
-            <div style={{ marginTop: "auto", marginLeft: "auto" }}>
-              <Delete style={{ color: "#f44", cursor: "pointer" }} onClick={() => deleteStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx)} />
-            </div>
-          </>
-        ) : mode == "layer" ? (
-          <>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-                <input type="radio" checked={upper} onChange={() => setUpper(true)} style={{ cursor: "pointer" }} />
-                上方向
-              </label>
-              <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-                <input type="radio" checked={!upper} onChange={() => setUpper(false)} style={{ cursor: "pointer" }} />
-                下方向
-              </label>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 40 }}>初期値</div>
-              {[
-                { label: "地下", value: 0 },
-                { label: "地上", value: 1 },
-                { label: "高架", value: 2 },
-              ].map(b => (
-                <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-                  <input
-                    type="radio"
-                    checked={selectedRoute.startLayer == b.value}
-                    onChange={() => updateRoute(selectedRouteIdx, { ...selectedRoute, startLayer: b.value })}
-                    style={{ cursor: "pointer" }}
-                  />
-                  {b.label}
-                </label>
               ))}
-            </div>
-          </>
-        ) : <></>}
+
+              {/* routes layer */}
+              {layerRanges.map((ranges, i) => {
+                const route = routes[i];
+                const totalLength = routePathLengths[i];
+                return ranges.map((range, j) => route.startDirection !== null && totalLength !== null && range.layer !== 1 && (
+                  <RoutePath
+                    key={`routeLayer_${i}_${j}`}
+                    startDirection={route.startDirection}
+                    points={route.points}
+                    color={lighten(route.color, range.layer >= 2 ? 1 : -1)}
+                    width={route.width / 2}
+                    offset={offset}
+                    from={meter(Math.min(range.from, totalLength))}
+                    to={meter(Math.min(range.to, totalLength))}
+                  />
+                ))
+              })}
+
+              {/* station preview */}
+              {mode == "station" && selectedRoute && selectedPathData && previewPoint && (
+                <StationPath
+                  id="station_preview"
+                  svgPath={selectedPathData.svgPath}
+                  distance={previewPoint.distance}
+                  length={stationLength}
+                  color={selectedRoute.color}
+                  width={stationWidth}
+                  opacity={0.4}
+                />
+              )}
+
+              {/* stations */}
+              {routes.map((route, i) => route.stations.map((station, j) => {
+                const key = `station_${i}_${j}`;
+                const pathData = routePathData[i];
+                const isSelected = mode == "station_edit" && selectedStationIdx && selectedStationIdx.routeIdx == i && selectedStationIdx.stationIdx == j;
+                return pathData && (
+                  <StationPath
+                    key={key}
+                    id={key}
+                    svgPath={pathData.svgPath}
+                    distance={station.distance}
+                    length={station.length}
+                    color={isSelected ? lighten(route.color, 2) : isHovered(key) ? lighten(route.color, 1) : route.color}
+                    width={station.width}
+                    left={station.left}
+                    platform={station.platform}
+                    name={station.name}
+                    number={station.number}
+                    nameLabelPosition={station.nameLabelPosition}
+                    numberLabelPosition={station.numberLabelPosition}
+                    onClick={onClickStation}
+                    setHoveredAt={setHoveredAt}
+                    routeIdx={i}
+                    stationIdx={j}
+                    mouseEnterEnabled={mode == "station_edit"}
+                    style={{ cursor: mode == "station_edit" && !isSelected ? "pointer" : "default" }}
+                  />
+                );
+              }))}
+
+              {/* layer change point */}
+              {mode == "layer" && selectedRoute && selectedPathData && previewPoint && (
+                <LayerChangePoint
+                  id={"layerChange_preview"}
+                  svgPath={selectedPathData.svgPath}
+                  distance={previewPoint.distance}
+                  fromLayer={getLayerAtLength(selectedRoute.startLayer, selectedRoute.layerChangePoints, previewPoint.distance)}
+                  upper={upper}
+                  color={selectedRoute.color}
+                  width={selectedRoute.width * 0.6}
+                  opacity={0.6}
+                />
+              )}
+
+              {/* layer changes */}
+              {sortedLayerChangePoints.map((points, i) => points.map((point, j) => {
+                const key = `layerChange_${i}_${j}`;
+                const pathData = routePathData[i];
+                const route = routes[i];
+                return pathData && (
+                  <LayerChangePoint
+                    key={key}
+                    id={key}
+                    svgPath={pathData.svgPath}
+                    distance={point.distance}
+                    fromLayer={point.fromLayer}
+                    upper={point.upper}
+                    color={isHovered(key) ? lighten(route.color, 1) : route.color}
+                    width={route.width * 0.6}
+                    onClick={onClickLayerChange}
+                    setHoveredAt={setHoveredAt}
+                    routeIdx={i}
+                    stationIdx={j}
+                    mouseEnterEnabled={mode == "layer"}
+                    style={{ cursor: mode == "layer" ? cursorDelete : "default" }}
+                  />
+                );
+              }))}
+            </svg>
+          </div>
+        </div>
+
+        {/* info */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, border: "solid 1px #aab", width: 480, height: 640, padding: 8, fontSize: 12 }}>
+          {selectedPath && <div>全長 {Math.round(meter(selectedPath.getTotalLength()) * 10 / 1000) / 10 } km</div>}
+          {mode == "view" ? (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 64 }}>サイズ(px)</div>
+                <input
+                  type="text"
+                  value={size.x}
+                  style={{ ...inputStyle, width: 48 }}
+                  onChange={(e) => setSize(prev => ({ ...prev, x: Math.max(Number(e.target.value) || 0) }))}
+                />
+                <div>×</div>
+                <input
+                  type="text"
+                  value={size.y}
+                  style={{ ...inputStyle, width: 48 }}
+                  onChange={(e) => setSize(prev => ({ ...prev, y: Math.max(Number(e.target.value) || 0) }))}
+                />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 64 }}>枠移動(px)</div>
+                <div>右方向</div>
+                <input
+                  type="text"
+                  value={offset.x}
+                  style={{ ...inputStyle, width: 48 }}
+                  onChange={(e) => setOffset(prev => ({ ...prev, x: Number(e.target.value) || 0 }))}
+                />
+                <div>下方向</div>
+                <input
+                  type="text"
+                  value={offset.y}
+                  style={{ ...inputStyle, width: 48 }}
+                  onChange={(e) => setOffset(prev => ({ ...prev, y: Number(e.target.value) }))}
+                />
+              </div>
+              <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                <input type="checkbox" checked={showGrid} onChange={() => setShowGrid(prev => !prev)} style={{ cursor: "pointer" }} />
+                グリッドを表示
+              </label>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div>背景画像</div>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={handleBgImage}
+                />
+              </div>
+              <div onClick={toPng} style={{ display: "flex", alignItems: "center", color: "#48f", cursor: "pointer" }} title="PNG出力">
+                <FileDownload style={{ fontSize: 24 }} />
+                <div>PNG出力</div>
+              </div>
+            </>
+          ) :  mode == "draw" ? (
+            <>
+              {previewPath && previewPath.lastRadius !== null && selectedRoute.points[selectedRoute.points.length - 1].length !== null && <div>半径 {Math.abs(Math.round(previewPath.lastRadius))} m</div>}
+              <button style={{ width: 48 }} onClick={() => reverseRoute(selectedRouteIdx)}>反転</button>
+            </>
+          ) : mode == "station" ? (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 48 }}>長さ(m)</div>
+                <input
+                  type="text"
+                  value={stationLength}
+                  style={{ ...inputStyle, width: 48 }}
+                  onChange={(e) => setStationLength(Math.max(Number(e.target.value) || 0, 0))}
+                />
+                <div style={{ display: "flex" }}>
+                  {[
+                    { label: "＋", diff: 1 },
+                    { label: "－", diff: -1 },
+                  ].map(b => (
+                    <button
+                      key={`changeLength_${b.label}`}
+                      style={moveButtonStyle}
+                      onClick={() => setStationLength(Math.max(stationLength + b.diff, 0))}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 48 }}>幅(m)</div>
+                <input
+                  type="text"
+                  value={stationWidth}
+                  style={{ ...inputStyle, width: 48 }}
+                  onChange={(e) => setStationWidth(Math.max(Number(e.target.value) || 0, 0))}
+                />
+                <div style={{ display: "flex" }}>
+                  {[
+                    { label: "＋", diff: 1 },
+                    { label: "－", diff: -1 },
+                  ].map(b => (
+                    <button
+                      key={`changeWidth_${b.label}`}
+                      style={moveButtonStyle}
+                      onClick={() => setStationWidth(Math.max(stationWidth + b.diff, 0))}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {previewFromPrev !== null && <div>前の駅から {Math.round(meter(previewFromPrev) * 10 / 1000) / 10 } km</div>}
+              {previewToNext !== null && <div>次の駅まで {Math.round(meter(previewToNext) * 10 / 1000) / 10 } km</div>}
+            </>
+          ) : mode == "station_edit" ? selectedStationIdx && selectedStation && (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 120 }}>駅名</div>
+                <input
+                  type="text"
+                  value={selectedStation.name}
+                  style={{ ...inputStyle, width: 120 }}
+                  onChange={(e) => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { name: e.target.value })}
+                />
+                <div style={{ display: "flex" }}>
+                  {[
+                    { label: "≪", diff: { x: -30, y: 0 } },
+                    { label: "≫", diff: { x: 30, y: 0 } },
+                    { label: "←", diff: { x: -3, y: 0 } },
+                    { label: "→", diff: { x: 3, y: 0 } },
+                    { label: "↑", diff: { x: 0, y: -3 } },
+                    { label: "↓", diff: { x: 0, y: 3 } },
+                  ].map(b => (
+                    <button
+                      key={`moveName_${b.label}`}
+                      style={moveButtonStyle}
+                      onClick={() => moveStationLabel(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, "name", b.diff)}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 120 }}>番号</div>
+                <input
+                  type="text"
+                  value={selectedStation.number}
+                  style={{ ...inputStyle, width: 120 }}
+                  onChange={(e) => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { number: e.target.value })}
+                />
+                <div style={{ display: "flex" }}>
+                  {[
+                    { label: "←", diff: { x: -3, y: 0 } },
+                    { label: "→", diff: { x: 3, y: 0 } },
+                    { label: "↑", diff: { x: 0, y: -3 } },
+                    { label: "↓", diff: { x: 0, y: 3 } },
+                  ].map(b => (
+                    <button
+                      key={`moveNumber_${b.label}`}
+                      style={moveButtonStyle}
+                      onClick={() => moveStationLabel(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, "number", b.diff)}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 120 }}>長さ(m)</div>
+                <input
+                  type="text"
+                  value={selectedStation.length}
+                  style={{ ...inputStyle, width: 48 }}
+                  onChange={(e) => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { length: Math.max(Number(e.target.value) || 0, 0) })}
+                />
+                <div style={{ display: "flex" }}>
+                  {[
+                    { label: "＋", diff: 1 },
+                    { label: "－", diff: -1 },
+                  ].map(b => (
+                    <button
+                      key={`changeLength_${b.label}`}
+                      style={moveButtonStyle}
+                      onClick={() => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { length: Math.max(selectedStation.length + b.diff, 0) })}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 120 }}>幅(m)</div>
+                <input
+                  type="text"
+                  value={selectedStation.width}
+                  style={{ ...inputStyle, width: 48 }}
+                  onChange={(e) => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { width: Math.max(Number(e.target.value) || 0, 0) })}
+                />
+                <div style={{ display: "flex" }}>
+                  {[
+                    { label: "＋", diff: 1 },
+                    { label: "－", diff: -1 },
+                  ].map(b => (
+                    <button
+                      key={`changeWidth_${b.label}`}
+                      style={moveButtonStyle}
+                      onClick={() => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { width: Math.max(selectedStation.width + b.diff, 0) })}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 120 }}>中心からのずれ(m)</div>
+                <input
+                  type="text"
+                  value={selectedStation.left}
+                  style={{ ...inputStyle, width: 48 }}
+                  onChange={(e) => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { left: Math.min(Math.max(Number(e.target.value) || 0, -selectedStation.width / 2), selectedStation.width / 2) })}
+                />
+                <div style={{ display: "flex" }}>
+                  {[
+                    { label: "＋", diff: 1 },
+                    { label: "－", diff: -1 },
+                  ].map(b => (
+                    <button
+                      key={`changeLeft_${b.label}`}
+                      style={moveButtonStyle}
+                      onClick={() => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { left: Math.min(Math.max(selectedStation.left + b.diff, -selectedStation.width / 2), selectedStation.width / 2) })}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 120 }}>ホーム(0/1)</div>
+                <input
+                  type="text"
+                  value={selectedStation.platform}
+                  style={{ ...inputStyle, width: 120 }}
+                  onChange={(e) => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { platform: Array.from(e.target.value).filter(c => c == "0" || c == "1").join("") })}
+                />
+                <div style={{ display: "flex" }}>
+                  {["1001", "010", "01010"].map(b => (
+                    <button
+                      key={`changePlatform_${b}`}
+                      style={{ ...moveButtonStyle, width: 56 }}
+                      onClick={() => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { platform: b })}
+                    >
+                      {b}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {selectedFromPrev !== null && <div>前の駅から {Math.round(meter(selectedFromPrev) * 10 / 1000) / 10 } km</div>}
+              {selectedToNext !== null && <div>次の駅まで {Math.round(meter(selectedToNext) * 10 / 1000) / 10 } km</div>}
+              <div style={{ marginTop: "auto", marginLeft: "auto" }}>
+                <Delete style={{ color: "#f44", cursor: "pointer" }} onClick={() => deleteStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx)} />
+              </div>
+            </>
+          ) : mode == "layer" ? (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                  <input type="radio" checked={upper} onChange={() => setUpper(true)} style={{ cursor: "pointer" }} />
+                  上方向
+                </label>
+                <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                  <input type="radio" checked={!upper} onChange={() => setUpper(false)} style={{ cursor: "pointer" }} />
+                  下方向
+                </label>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 40 }}>初期値</div>
+                {[
+                  { label: "地下", value: 0 },
+                  { label: "地上", value: 1 },
+                  { label: "高架", value: 2 },
+                ].map(b => (
+                  <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                    <input
+                      type="radio"
+                      checked={selectedRoute.startLayer == b.value}
+                      onChange={() => updateRoute(selectedRouteIdx, { ...selectedRoute, startLayer: b.value })}
+                      style={{ cursor: "pointer" }}
+                    />
+                    {b.label}
+                  </label>
+                ))}
+              </div>
+            </>
+          ) : <></>}
+        </div>
       </div>
     </div>
   );
