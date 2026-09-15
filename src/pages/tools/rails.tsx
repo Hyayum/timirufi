@@ -247,7 +247,7 @@ const calcNearestPathPoint = (path: SVGPathElement, x: number, y: number, width:
   const minD = Math.min(width / 2, length);
   const maxD = Math.max(length - (width / 2), 0);
   // 雑め
-  const roughStep = 10
+  const roughStep = 100;
   let minDistance = Infinity;
   let nearestD = 0;
   for (let d = minD; d <= maxD; d += roughStep) {
@@ -266,7 +266,7 @@ const calcNearestPathPoint = (path: SVGPathElement, x: number, y: number, width:
   nearestD = searchFrom;
   let nearestX = startP.x;
   let nearestY = startP.y;
-  for (let d = searchFrom; d <= searchTo; d += 0.5) {
+  for (let d = searchFrom; d <= searchTo; d += 1) {
     const p = path.getPointAtLength(d);
     const distance = ((x - p.x) ** 2 + (y - p.y) ** 2) ** 0.5;
     if (distance < minDistance) {
@@ -379,6 +379,10 @@ export default function Rails() {
   const [bgImage, setBgImage] = useState<string | null>(null);
   const [showGrid, setShowGrid] = useState(true);
 
+  const setPathRef = useCallback((elm: SVGPathElement | null, i: number) => {
+    routePathRefs.current[i] = elm;
+  }, []);
+
   const save = async () => {
     setFileReadFailed(false);
     let handle = fileHandle;
@@ -461,6 +465,12 @@ export default function Rails() {
       save();
     }
   }, [routes, size, offset, stationLength, stationWidth, bgImage]);
+
+  useEffect(() => {
+    if (autoSave && !saved) {
+      save();
+    }
+  }, [autoSave]);
 
   const getXYInSvg = (e: React.MouseEvent<SVGSVGElement>, topLeft?: XY) => {
     const svgRect = e.currentTarget.getBoundingClientRect();
@@ -945,7 +955,8 @@ export default function Rails() {
               {routes.map((route, i) => route.startDirection !== null && (
                 <SvgRoutePath
                   key={`routePath_${i}`}
-                  ref={elm => { routePathRefs.current[i] = elm; }}
+                  setRef={setPathRef}
+                  refIdx={i}
                   startDirection={route.startDirection}
                   points={route.points}
                   color={route.color}
@@ -1484,7 +1495,8 @@ const ColorPicker = ({
 };
 
 type RoutePathProps = {
-  ref?: React.Ref<SVGPathElement>;
+  setRef?: (elm: SVGPathElement | null, i: number) => void;
+  refIdx?: number;
   startDirection: number;
   points: RoutePoint[];
   color: HSV;
@@ -1500,9 +1512,10 @@ const isSameObj = <T,>(prev: T, next: T) => {
 };
 
 const SvgRoutePath = React.memo(function SvgRoutePath(props: RoutePathProps) {
+  console.log("rendered")
   return (
     <path
-      ref={props.ref}
+      ref={elm => { if (props.setRef && props.refIdx !== undefined) { props.setRef(elm, props.refIdx); }}}
       d={calcPath(props.startDirection, props.points, props.offset, props.from, props.to).svgPath}
       stroke={rgb(props.color)}
       strokeWidth={props.width}
