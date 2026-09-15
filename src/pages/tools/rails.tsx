@@ -6,59 +6,80 @@ import {
   Close,
   Delete,
   EditLocationAlt,
+  FileOpen,
   Layers,
   ModeEdit,
   PanTool,
+  Save,
 } from "@mui/icons-material";
+import { z } from "zod";
 import { hsvToRgb } from "@/chord/model";
 
-type XY = {
-  x: number;
-  y: number;
-};
+const XYSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+});
+type XY = z.infer<typeof XYSchema>;
 
-type RoutePoint = XY & {
-  length: number | null; // 点(x,y) -> 直線(length) -> 次の点に向かう曲線(円弧) -> ...
-};
+const RoutePointSchema = XYSchema.extend({
+  length: z.number().nullable(), // 点(x,y) -> 直線(length) -> 次の点に向かう曲線(円弧) -> ...
+});
+type RoutePoint = z.infer<typeof RoutePointSchema>;
 
-type Station = {
-  distance: number; // px
-  name: string;
-  number: string;
-  nameLabelPosition: XY; // 相対px
-  numberLabelPosition: XY; // 相対px
-  length: number; // m
-  width: number; // m
-  left: number; // 中心からのずれ(進行左方向) m
-  platform: string; // 進行左からホーム有無 ex: 101(相対) 010(島) 1010
-};
+const StationSchema = z.object({
+  distance: z.number(), // px
+  name: z.string(),
+  number: z.string(),
+  nameLabelPosition: XYSchema, // 相対px
+  numberLabelPosition: XYSchema, // 相対px
+  length: z.number(), // m
+  width: z.number(), // m
+  left: z.number(), // 中心からのずれ(進行左方向) m
+  platform: z.string(), // 進行左からホーム有無 ex: 101(相対) 010(島) 1010
+});
+type Station = z.infer<typeof StationSchema>;
 
-type LayerChangePoint = {
-  distance: number;
-  upper: boolean;
-};
+const LayerChangePointSchema = z.object({
+  distance: z.number(),
+  upper: z.boolean(),
+});
+type LayerChangePoint = z.infer<typeof LayerChangePointSchema>;
 
-type HSV = {
-  h: number;
-  s: number;
-  v: number;
-}
+const HSVSchema = z.object({
+  h: z.number(),
+  s: z.number(),
+  v: z.number(),
+});
+type HSV = z.infer<typeof HSVSchema>;
 
 // 元データ(長さ系の単位は基本m)
-type Route = {
-  name: string;
-  startDirection: number | null; // rad
-  points: RoutePoint[];
-  stations: Station[];
-  startLayer: number; // 0-2 (地下～高架)
-  layerChangePoints: LayerChangePoint[];
-  color: HSV;
-  width: number; // px
-};
+const RouteSchema = z.object({
+  name: z.string(),
+  startDirection: z.number().nullable(), // rad
+  points: z.array(RoutePointSchema),
+  stations: z.array(StationSchema),
+  startLayer: z.number(), // 0-2 (地下～高架)
+  layerChangePoints: z.array(LayerChangePointSchema),
+  color: HSVSchema,
+  width: z.number(), // px
+});
+type Route = z.infer<typeof RouteSchema>;
+
+const SaveDataSchema = z.object({
+  routes: z.array(RouteSchema),
+  size: XYSchema,
+  offset: XYSchema,
+  stationLength: z.number(),
+  stationWidth: z.number(),
+  bgImage: z.string().nullable(),
+});
+type SaveData = z.infer<typeof SaveDataSchema>;
 
 const METER_PER_PX = 5;
 const meter = (px: number) => px * METER_PER_PX;
 const px = (meter: number) => meter / METER_PER_PX;
+
+const cursorDelete = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Cpath d='M5 5L19 19M19 5L5 19' stroke='black' stroke-width='2'/%3E%3C/svg%3E") 12 12, auto`;
 
 type RoutePointInfo = RoutePoint & {
   midX: number | null;
@@ -323,6 +344,10 @@ export default function Rails() {
   const [hoveredAt, setHoveredAt] = useState<string | null>(null);
   const isHovered = (key: string) => key === hoveredAt;
   const [routeDeletionMode, setRouteDeletionMode] = useState(false);
+  const [fileHandle, setFileHandle] = useState<FileSystemFileHandle | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [autoSave, setAutoSave] = useState(false);
+  const [fileReadFailed, setFileReadFailed] = useState(false);
   // route meta
   const [routeNameEditing, setRouteNameEditing] = useState<{ idx: number, name: string } | null>(null);
   const [routeColorEditing, setRouteColorEditing] = useState<{ idx: number, color: HSV } | null>(null);
@@ -349,6 +374,85 @@ export default function Rails() {
   const routePathLengths = routePathRefs.current.map(path => path?.getTotalLength() || null);
   const routePathData = routes.map(r => r.startDirection !== null ? calcPath(r.startDirection, r.points, offset) : null);
   const selectedPathData = routePathData[selectedRouteIdx] ?? null;
+  const [bgImage, setBgImage] = useState<string | null>(null);
+  const [showGrid, setShowGrid] = useState(true);
+
+  const save = async () => {
+    setFileReadFailed(false);
+    let handle = fileHandle;
+    if (!handle) {
+      handle = await window.showSaveFilePicker({
+        suggestedName: "rails.json",
+        types: [
+          {
+            description: "JSON",
+            accept: {
+              "application/json": [".json"],
+            },
+          },
+        ],
+      });
+      setFileHandle(handle);
+    };
+    
+    const writable = await handle.createWritable();
+    const data: SaveData = {
+      routes,
+      size,
+      offset,
+      stationLength,
+      stationWidth,
+      bgImage,
+    };
+    await writable.write(JSON.stringify(data));
+    await writable.close();
+    setSaved(true);
+  };
+
+  const openFile = async () => {
+    if (!("showOpenFilePicker" in window)) return;
+    setFileReadFailed(false);
+    try {
+      const [handle] = await window.showOpenFilePicker({
+        types: [
+          {
+            description: "JSON",
+            accept: {
+              "application/json": [".json"],
+            },
+          },
+        ],
+      });
+      const file = await handle.getFile();
+      const text = await file.text();
+      const json = JSON.parse(text);
+      const result = SaveDataSchema.safeParse(json);
+      if (!result.success) {
+        console.error(result.error.issues);
+        setFileReadFailed(true);
+        return;
+      }
+      const routes = result.data.routes;
+      setRoutes(routes.length == 0 ? [initialRoute] : routes);
+      setSize(result.data.size);
+      setOffset(result.data.offset);
+      setStationLength(result.data.stationLength);
+      setStationWidth(result.data.stationWidth);
+      setBgImage(result.data.bgImage);
+      setSelectedRouteIdx(0);
+      setFileHandle(handle);
+    } catch (e) {
+      console.error(e);
+      setFileReadFailed(true);
+    }
+  };
+
+  useEffect(() => {
+    setSaved(false);
+    if (autoSave && fileHandle) {
+      save();
+    }
+  }, [routes, size, offset, stationLength, stationWidth, bgImage]);
 
   const getXYInSvg = (e: React.MouseEvent<SVGSVGElement>, topLeft?: XY) => {
     const svgRect = e.currentTarget.getBoundingClientRect();
@@ -373,11 +477,10 @@ export default function Rails() {
     }
     if (selectedRoute && selectedPath && mode == "station") {
       const nearest = calcNearestPathPoint(selectedPath, x, y, px(stationLength));
-      const newStation = {
+      const newStation: Station = {
         distance: nearest.distance,
         name: "",
         number: "",
-        nameLabelHidden: false,
         nameLabelPosition: { x: 8, y: 8 },
         numberLabelPosition: { x: 8, y: -8 },
         length: stationLength,
@@ -388,11 +491,12 @@ export default function Rails() {
       updateRoute(selectedRouteIdx, { ...selectedRoute, stations: [...selectedRoute.stations, newStation] });
     }
     if (selectedRoute && selectedPath && mode == "layer") {
+      if (hoveredAt && hoveredAt.startsWith("layerChange_")) return;
       const nearest = calcNearestPathPoint(selectedPath, x, y);
       const currentLayer = getLayerAtLength(selectedRoute.startLayer, selectedRoute.layerChangePoints, nearest.distance);
       const nextLayer = currentLayer + (upper ? 1 : -1);
       if (nextLayer < 0 || 2 < nextLayer) return;
-      const newLayerPoint = {
+      const newLayerPoint: LayerChangePoint = {
         distance: nearest.distance,
         upper,
       };
@@ -443,6 +547,7 @@ export default function Rails() {
   };
 
   const addRoute = () => {
+    setSelectedRouteIdx(routes.length);
     setRoutes(prev => [...prev, { ...initialRoute }]);
     setRouteDeletionMode(false);
   };
@@ -457,7 +562,6 @@ export default function Rails() {
 
   const onClickStation = useCallback((e: React.MouseEvent<SVGPathElement>, routeIdx: number, stationIdx: number) => {
     if (mode != "station_edit") return;
-    e.stopPropagation();
     setSelectedStationIdx({ routeIdx, stationIdx });
   }, [mode]);
 
@@ -491,6 +595,14 @@ export default function Rails() {
     return changePoints.filter(p => p.distance <= distance).reduce((acc, p) => acc + (p.upper ? 1 : -1), startLayer);
   };
 
+  const onClickLayerChange = useCallback((e: React.MouseEvent<SVGPathElement>, routeIdx: number, pointIdx: number) => {
+    const route = routes[routeIdx];
+    if (mode != "layer" || !route) return;
+    const newPoints = route.layerChangePoints.filter((_, i) => i !== pointIdx);
+    updateRoute(routeIdx, { ...route, layerChangePoints: newPoints });
+    setHoveredAt(null);
+  }, [mode, routes]);
+
   const reverseRoute = (routeIdx: number) => {
     const route = routes[routeIdx];
     const pathData = routePathData[routeIdx];
@@ -508,6 +620,15 @@ export default function Rails() {
     const layerChangePoints = route.layerChangePoints.map(s => ({ ...s, distance: totalLength - s.distance, upper: !s.upper }));
     const startLayer = getLayerAtLength(route.startLayer, route.layerChangePoints, totalLength);
     updateRoute(routeIdx, { ...route, startDirection, points, stations, layerChangePoints, startLayer });
+  };
+
+  const handleBgImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setBgImage(reader.result as string);
+    reader.readAsDataURL(file);
   };
 
   const previewRoute = selectedRoute && mouseXY && mode == "draw" ? calcNextRoute(selectedRoute, meter(mouseXY.x), meter(mouseXY.y), offset, 2000) : null;
@@ -578,6 +699,32 @@ export default function Rails() {
               </div>
             );
           })}
+          <div style={{ display: "flex", alignItems: "center", gap: 4, paddingLeft: 8 }}>
+            <div onClick={openFile} style={{ display: "flex", alignItems: "center", color: "#48f", cursor: "pointer" }}>
+              <FileOpen style={{ fontSize: 18 }} />
+            </div>
+            <div onClick={save} style={{ display: "flex", alignItems: "center", color: "#48f", cursor: "pointer" }}>
+              <Save style={{ fontSize: 18 }} />
+            </div>
+            <div style={{ color: saved ? "#4a4" : "#888", fontSize: 10, backgroundColor: saved ? "#cfc" : "#eee", padding: "0 2px", borderRadius: 4 }}>
+              {saved ? "保存済" : "未保存"}
+            </div>
+            {fileHandle && (
+              <label style={{ display: "flex", alignItems: "center", cursor: fileHandle ? "pointer" : "default", fontSize: 12 }}>
+                <input
+                  type="checkbox"
+                  checked={!!fileHandle && autoSave}
+                  onChange={() => setAutoSave(prev => !prev)}
+                  style={{ cursor: fileHandle ? "pointer" : "default" }}
+                  disabled={!fileHandle}
+                />
+                自動
+              </label>
+            )}
+            {fileReadFailed && (
+              <div style={{ fontSize: 10, color: "#f44" }}>読込失敗</div>
+            )}
+          </div>
         </div>
         {/* routes list */}
         {routes.map((route, i) => {
@@ -703,28 +850,36 @@ export default function Rails() {
               backgroundColor: "#444",
               cursor: mode == "view" ? (dragStartedAt ? "grabbing" : "grab") :
                 mode == "draw" ? "crosshair" :
-                mode == "station" ? "pointer" : "default",
+                mode == "station" ? "pointer" :
+                mode == "layer" ? "pointer" : "default",
             }}
           >
             <rect x={0} y={0} width={size.x} height={size.y} fill="#fff" />
+            {bgImage && (
+              <image href={bgImage} x={0} y={0} />
+            )}
 
             {/* grid */}
-            {Array.from({ length: Math.floor(meter(size.x) / 1000) }).map((_, i) => {
-              const x = px(1000 * (i + 1));
-              return <path key={`grid_xl_${i}`} d={`M${x} 0 ${x} ${size.y}`} stroke="#ccc" strokeWidth={1} fill="none" />;
-            })}
-            {zoom > -2 && Array.from({ length: Math.floor(meter(size.x) / 100) }).map((_, i) => {
-              const x = px(100 * (i + 1));
-              return <path key={`grid_yl_${i}`} d={`M${x} 0 ${x} ${size.y}`} stroke="#ddd" strokeWidth={0.5} fill="none" />;
-            })}
-            {Array.from({ length: Math.floor(meter(size.y) / 1000) }).map((_, i) => {
-              const y = px(1000 * (i + 1));
-              return <path key={`grid_xs_${i}`} d={`M0 ${y} ${size.x} ${y}`} stroke="#ccc" strokeWidth={1} fill="none" />;
-            })}
-            {zoom > -2 && Array.from({ length: Math.floor(meter(size.y) / 100) }).map((_, i) => {
-              const y = px(100 * (i + 1));
-              return <path key={`grid_ys_${i}`} d={`M0 ${y} ${size.x} ${y}`} stroke="#ddd" strokeWidth={0.5} fill="none" />;
-            })}
+            {showGrid && (
+              <>
+                {Array.from({ length: Math.floor(meter(size.x) / 1000) }).map((_, i) => {
+                  const x = px(1000 * (i + 1));
+                  return <path key={`grid_xl_${i}`} d={`M${x} 0 ${x} ${size.y}`} stroke="#ccc" strokeWidth={1} fill="none" />;
+                })}
+                {zoom > -2 && Array.from({ length: Math.floor(meter(size.x) / 100) }).map((_, i) => {
+                  const x = px(100 * (i + 1));
+                  return <path key={`grid_yl_${i}`} d={`M${x} 0 ${x} ${size.y}`} stroke="#ddd" strokeWidth={0.5} fill="none" />;
+                })}
+                {Array.from({ length: Math.floor(meter(size.y) / 1000) }).map((_, i) => {
+                  const y = px(1000 * (i + 1));
+                  return <path key={`grid_xs_${i}`} d={`M0 ${y} ${size.x} ${y}`} stroke="#ccc" strokeWidth={1} fill="none" />;
+                })}
+                {zoom > -2 && Array.from({ length: Math.floor(meter(size.y) / 100) }).map((_, i) => {
+                  const y = px(100 * (i + 1));
+                  return <path key={`grid_ys_${i}`} d={`M0 ${y} ${size.x} ${y}`} stroke="#ddd" strokeWidth={0.5} fill="none" />;
+                })}
+              </>
+            )}
 
             {/* draw preview */}
             {mode == "draw" && mouseXY && selectedRoute.points.length == 0 && (
@@ -788,7 +943,7 @@ export default function Rails() {
               const key = `station_${i}_${j}`;
               const pathData = routePathData[i];
               const isSelected = mode == "station_edit" && selectedStationIdx && selectedStationIdx.routeIdx == i && selectedStationIdx.stationIdx == j;
-              return pathData && routePathLengths[i] && station.distance <= routePathLengths[i] && (
+              return pathData && (
                 <StationPath
                   key={key}
                   id={key}
@@ -809,6 +964,45 @@ export default function Rails() {
                   stationIdx={j}
                   mouseEnterEnabled={mode == "station_edit"}
                   style={{ cursor: mode == "station_edit" && !isSelected ? "pointer" : "default" }}
+                />
+              );
+            }))}
+
+            {/* layer change point */}
+            {mode == "layer" && selectedRoute && selectedPathData && previewPoint && (
+              <LayerChangePoint
+                id={"layerChange_preview"}
+                svgPath={selectedPathData.svgPath}
+                distance={previewPoint.distance}
+                fromLayer={getLayerAtLength(selectedRoute.startLayer, selectedRoute.layerChangePoints, previewPoint.distance)}
+                upper={upper}
+                color={selectedRoute.color}
+                width={selectedRoute.width * 0.6}
+                opacity={0.6}
+              />
+            )}
+
+            {/* layer changes */}
+            {sortedLayerChangePoints.map((points, i) => points.map((point, j) => {
+              const key = `layerChange_${i}_${j}`;
+              const pathData = routePathData[i];
+              const route = routes[i];
+              return pathData && (
+                <LayerChangePoint
+                  key={key}
+                  id={key}
+                  svgPath={pathData.svgPath}
+                  distance={point.distance}
+                  fromLayer={point.fromLayer}
+                  upper={point.upper}
+                  color={isHovered(key) ? lighten(route.color, 1) : route.color}
+                  width={route.width * 0.6}
+                  onClick={onClickLayerChange}
+                  setHoveredAt={setHoveredAt}
+                  routeIdx={i}
+                  stationIdx={j}
+                  mouseEnterEnabled={mode == "layer"}
+                  style={{ cursor: mode == "layer" ? cursorDelete : "default" }}
                 />
               );
             }))}
@@ -852,6 +1046,18 @@ export default function Rails() {
                 value={offset.y}
                 style={{ ...inputStyle, width: 48 }}
                 onChange={(e) => setOffset(prev => ({ ...prev, y: Number(e.target.value) }))}
+              />
+            </div>
+            <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+              <input type="checkbox" checked={showGrid} onChange={() => setShowGrid(prev => !prev)} style={{ cursor: "pointer" }} />
+              グリッドを表示
+            </label>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div>背景画像</div>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={handleBgImage}
               />
             </div>
           </>
@@ -1073,27 +1279,22 @@ export default function Rails() {
               </label>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 48 }}>初期値</div>
-              <input
-                type="text"
-                value={selectedRoute.startLayer}
-                style={{ ...inputStyle, width: 48 }}
-                onChange={(e) => updateRoute(selectedRouteIdx, { ...selectedRoute, startLayer: Math.min(Math.max(Number(e.target.value) || 0, 0), 2) })}
-              />
-              <div style={{ display: "flex" }}>
-                {[
-                  { label: "＋", diff: 1 },
-                  { label: "－", diff: -1 },
-                ].map(b => (
-                  <button
-                    key={`changeStarLayer_${b.label}`}
-                    style={moveButtonStyle}
-                    onClick={() => updateRoute(selectedRouteIdx, { ...selectedRoute, startLayer: Math.min(Math.max(selectedRoute.startLayer + b.diff, 0), 2) })}
-                  >
-                    {b.label}
-                  </button>
-                ))}
-              </div>
+              <div style={{ width: 40 }}>初期値</div>
+              {[
+                { label: "地下", value: 0 },
+                { label: "地上", value: 1 },
+                { label: "高架", value: 2 },
+              ].map(b => (
+                <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                  <input
+                    type="radio"
+                    checked={selectedRoute.startLayer == b.value}
+                    onChange={() => updateRoute(selectedRouteIdx, { ...selectedRoute, startLayer: b.value })}
+                    style={{ cursor: "pointer" }}
+                  />
+                  {b.label}
+                </label>
+              ))}
             </div>
           </>
         ) : <></>}
@@ -1293,6 +1494,7 @@ type StationPathProps = {
 const StationPath = React.memo((props: StationPathProps) => {
   const pathElm = document.createElementNS("http://www.w3.org/2000/svg", "path");
   pathElm.setAttribute("d", props.svgPath);
+  const totalLength = pathElm.getTotalLength();
   const centerPoints = Array.from({ length: 15 }).map((_, i) => {
     const distance = props.distance + px(props.length) * (i - 7) / (7 * 2);
     const p = pathElm.getPointAtLength(distance);
@@ -1304,7 +1506,7 @@ const StationPath = React.memo((props: StationPathProps) => {
   const platformWidth = platformCount ? px(props.width / platformCount) : 0;
   const platformPaths = props.platform ? Array.from(props.platform).map((f, i) => f == "1" ?
     stationPoints.map(p => getSidePoint(p.x, p.y, p.direction, px(props.width / 2 - i * props.width / platformCount) - platformWidth / 2)) : null) : null;
-  return (
+  return 0 <= props.distance && props.distance <= totalLength && (
     <>
       <path
         d={`M${stationPoints.map(p => `${p.x} ${p.y}`).join("L")}`}
@@ -1315,7 +1517,7 @@ const StationPath = React.memo((props: StationPathProps) => {
         onMouseEnter={() => { if (props.mouseEnterEnabled && props.setHoveredAt) { props.setHoveredAt(props.id) } }}
         onMouseLeave={() => props.setHoveredAt && props.setHoveredAt(null)}
         opacity={0}
-        style={{ ...props.style,  }}
+        style={{ ...props.style }}
       />
       <path
         d={`M${stationPoints.map(p => `${p.x} ${p.y}`).join("L")}`}
@@ -1371,6 +1573,80 @@ const StationPath = React.memo((props: StationPathProps) => {
     isSameObj(prev.color, next.color) &&
     isSameObj(prev.nameLabelPosition, next.nameLabelPosition) &&
     isSameObj(prev.numberLabelPosition, next.numberLabelPosition) &&
+    isSameObj(prev.style, next.style)
+  );
+});
+
+type LayerChangePointProps = {
+  id: string;
+  svgPath: string;
+  distance: number;
+  fromLayer: number;
+  upper: boolean;
+  color: HSV;
+  width: number;
+  opacity?: number;
+  onClick?: (e: React.MouseEvent<SVGPathElement>, routeIdx: number, pointIdx: number) => void;
+  setHoveredAt?: React.Dispatch<string | null>;
+  routeIdx?: number;
+  stationIdx?: number;
+  mouseEnterEnabled?: boolean;
+  style?: React.CSSProperties;
+};
+
+const LayerChangePoint = React.memo((props: LayerChangePointProps) => {
+  const pathElm = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  pathElm.setAttribute("d", props.svgPath);
+  const totalLength = pathElm.getTotalLength();
+  const direction = getDirectionAtLength(pathElm, props.distance);
+  const isArc = props.upper ? props.fromLayer <= 0 : props.fromLayer <= 1;
+  const noChange = props.upper ? props.fromLayer < 0 || 2 <= props.fromLayer : props.fromLayer <= 0 || 2 < props.fromLayer;
+  const p = pathElm.getPointAtLength(props.distance);
+  const nx = Math.cos(direction + Math.PI / 2) * (props.upper ? 1 : -1);
+  const ny = Math.sin(direction + Math.PI / 2) * (props.upper ? 1 : -1);
+  const dx = Math.cos(direction) * (props.upper ? 1 : -1);
+  const dy = Math.sin(direction) * (props.upper ? 1 : -1);
+  const size = props.width * 2;
+  const px1 = p.x + nx * size; const py1 = p.y + ny * size;
+  const px2 = px1 + dx * size; const py2 = py1 + dy * size;
+  const px3 = p.x - nx * size; const py3 = p.y - ny * size;
+  const px4 = px3 + dx * size; const py4 = py3 + dy * size;
+  const path = isArc ? `M${px2} ${py2}A${size} ${size} 0 0 1 ${px4} ${py4}` :
+    `M${px2} ${py2}L${px1} ${py1}L${px3} ${py3}L${px4} ${py4}`;
+  return 0 <= props.distance && props.distance <= totalLength && (
+    <>
+      <path
+        d={path}
+        stroke={rgb(props.color)}
+        strokeWidth={props.width + 8}
+        fill="none"
+        onClick={(e) => props.onClick && props.routeIdx !== undefined && props.stationIdx !== undefined && props.onClick(e, props.routeIdx, props.stationIdx)}
+        onMouseEnter={() => { if (props.mouseEnterEnabled && props.setHoveredAt) { props.setHoveredAt(props.id) } }}
+        onMouseLeave={() => props.setHoveredAt && props.setHoveredAt(null)}
+        opacity={0}
+        style={{ ...props.style }}
+      />
+      <path
+        d={path}
+        stroke={rgb(props.color)}
+        strokeWidth={props.width}
+        strokeOpacity={noChange ? (props.opacity ?? 1) * 0.4 : (props.opacity ?? 1)}
+        fill="none"
+        style={{ pointerEvents: "none" }}
+      />
+    </>
+  );
+}, (prev, next) => {
+  for (const key of Object.keys(prev) as (keyof LayerChangePointProps)[]) {
+    if (
+      key === "color" || key === "style"
+    ) continue;
+    if (!Object.is(prev[key], next[key])) {
+      return false;
+    }
+  }
+  return (
+    isSameObj(prev.color, next.color) &&
     isSameObj(prev.style, next.style)
   );
 });
