@@ -647,7 +647,7 @@ export default function Rails() {
     const prevStation = prev ? route.stations.filter(s => s.distance < station.distance).sort((a, b) => b.distance - a.distance)[0] :
       route.stations.filter(s => s.distance > station.distance).sort((a, b) => a.distance - b.distance)[0];
     if (!prevStation || !prevStation.number) return;
-    const newNumber = prevStation.number.replace(/(\d+)$/, (_, num) => `${Number(num) + 1}`);
+    const newNumber = prevStation.number.replace(/(\d+)$/, (_, num) => `${Number(num) + 1}`.padStart(num.length, "0"));
     updateStation(routeIdx, stationIdx, { number: newNumber });
   };
 
