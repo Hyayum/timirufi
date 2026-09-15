@@ -349,6 +349,7 @@ export default function Rails() {
   const [saved, setSaved] = useState(false);
   const [autoSave, setAutoSave] = useState(false);
   const [fileReadFailed, setFileReadFailed] = useState(false);
+  const fileOpened = useRef(false);
   // route meta
   const [routeNameEditing, setRouteNameEditing] = useState<{ idx: number, name: string } | null>(null);
   const [routeColorEditing, setRouteColorEditing] = useState<{ idx: number, color: HSV } | null>(null);
@@ -442,6 +443,8 @@ export default function Rails() {
       setBgImage(result.data.bgImage);
       setSelectedRouteIdx(0);
       setFileHandle(handle);
+      setSaved(true);
+      fileOpened.current = true;
     } catch (e) {
       console.error(e);
       setFileReadFailed(true);
@@ -449,6 +452,10 @@ export default function Rails() {
   };
 
   useEffect(() => {
+    if (fileOpened.current) {
+      fileOpened.current = false;
+      return;
+    }
     setSaved(false);
     if (autoSave && fileHandle) {
       save();
@@ -716,7 +723,7 @@ export default function Rails() {
             <Save style={{ fontSize: 24 }} />
           </div>
           <div style={{ color: saved ? "#4a4" : "#888", fontSize: 10, backgroundColor: saved ? "#cfc" : "#eee", padding: "0 2px", borderRadius: 4 }}>
-            {saved ? "保存済" : "未保存"}
+            {saved ? "保存済" : autoSave && fileHandle ? "保存中" : "未保存"}
           </div>
           {fileHandle && (
             <label style={{ display: "flex", alignItems: "center", cursor: fileHandle ? "pointer" : "default", fontSize: 12 }}>
