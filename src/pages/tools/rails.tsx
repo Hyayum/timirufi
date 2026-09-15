@@ -499,7 +499,7 @@ export default function Rails() {
         distance: nearest.distance,
         name: "",
         number: "",
-        nameLabelPosition: { x: 8, y: 8 },
+        nameLabelPosition: { x: -22, y: -4 },
         numberLabelPosition: { x: 8, y: -8 },
         length: stationLength,
         width: stationWidth,
@@ -640,6 +640,17 @@ export default function Rails() {
     updateRoute(routeIdx, { ...route, startDirection, points, stations, layerChangePoints, startLayer });
   };
 
+  const autofillStationNumber = (routeIdx: number, stationIdx: number, prev = true) => {
+    const route = routes[routeIdx];
+    const station = route?.stations[stationIdx];
+    if (!route || !station) return;
+    const prevStation = prev ? route.stations.filter(s => s.distance < station.distance).sort((a, b) => b.distance - a.distance)[0] :
+      route.stations.filter(s => s.distance > station.distance).sort((a, b) => a.distance - b.distance)[0];
+    if (!prevStation || !prevStation.number) return;
+    const newNumber = prevStation.number.replace(/(\d+)$/, (_, num) => `${Number(num) + 1}`);
+    updateStation(routeIdx, stationIdx, { number: newNumber });
+  };
+
   const handleBgImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     const file = e.target.files[0];
@@ -697,8 +708,8 @@ export default function Rails() {
   };
   const previewFromPrev = previewPoint && selectedRoute ? distanceFromPrevStation(previewPoint.distance, selectedRoute.stations) : null;
   const previewToNext = previewPoint && selectedRoute ? distanceToNextStation(previewPoint.distance, selectedRoute.stations) : null;
-  const selectedFromPrev = selectedStation && selectedRoute ? distanceFromPrevStation(selectedStation.distance, selectedRoute.stations) : null;
-  const selectedToNext = selectedStation && selectedRoute ? distanceToNextStation(selectedStation.distance, selectedRoute.stations) : null;
+  const selectedFromPrev = selectedStationIdx && selectedStation && routes[selectedStationIdx.routeIdx] ? distanceFromPrevStation(selectedStation.distance, routes[selectedStationIdx.routeIdx].stations) : null;
+  const selectedToNext = selectedStationIdx && selectedStation && routes[selectedStationIdx.routeIdx] ? distanceToNextStation(selectedStation.distance, routes[selectedStationIdx.routeIdx].stations) : null;
 
   const sortedLayerChangePoints = routes.map(r => r.layerChangePoints.sort((a, b) => a.distance - b.distance).reduce((acc, p, i) => {
     const fromLayer = Math.min(Math.max(i == 0 ? r.startLayer : (acc[i - 1].fromLayer + (acc[i - 1].upper ? 1 : -1)), 0), 2);
@@ -1182,11 +1193,11 @@ export default function Rails() {
           ) : mode == "station_edit" ? selectedStationIdx && selectedStation && (
             <>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 120 }}>駅名</div>
+                <div style={{ width: 80 }}>駅名</div>
                 <input
                   type="text"
                   value={selectedStation.name}
-                  style={{ ...inputStyle, width: 120 }}
+                  style={{ ...inputStyle, width: 144 }}
                   onChange={(e) => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { name: e.target.value })}
                 />
                 <div style={{ display: "flex" }}>
@@ -1209,15 +1220,17 @@ export default function Rails() {
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 120 }}>番号</div>
+                <div style={{ width: 80 }}>番号</div>
                 <input
                   type="text"
                   value={selectedStation.number}
-                  style={{ ...inputStyle, width: 120 }}
+                  style={{ ...inputStyle, width: 48 }}
                   onChange={(e) => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { number: e.target.value })}
                 />
                 <div style={{ display: "flex" }}>
                   {[
+                    { label: "≪", diff: { x: -30, y: 0 } },
+                    { label: "≫", diff: { x: 30, y: 0 } },
                     { label: "←", diff: { x: -3, y: 0 } },
                     { label: "→", diff: { x: 3, y: 0 } },
                     { label: "↑", diff: { x: 0, y: -3 } },
@@ -1232,9 +1245,17 @@ export default function Rails() {
                     </button>
                   ))}
                 </div>
+                <div style={{ display: "flex" }}>
+                  <button onClick={() => autofillStationNumber(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, true)}>
+                    前駅+1
+                  </button>
+                  <button onClick={() => autofillStationNumber(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, false)}>
+                    次駅+1
+                  </button>
+                </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 120 }}>長さ(m)</div>
+                <div style={{ width: 80 }}>長さ(m)</div>
                 <input
                   type="text"
                   value={selectedStation.length}
@@ -1257,7 +1278,7 @@ export default function Rails() {
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 120 }}>幅(m)</div>
+                <div style={{ width: 80 }}>幅(m)</div>
                 <input
                   type="text"
                   value={selectedStation.width}
