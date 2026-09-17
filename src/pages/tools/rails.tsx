@@ -500,7 +500,7 @@ export default function Rails() {
         name: "",
         number: "",
         nameLabelPosition: { x: 8, y: 8 },
-        numberLabelPosition: { x: -25, y: 7 },
+        numberLabelPosition: { x: -28, y: 7 },
         length: stationLength,
         width: stationWidth,
         left: 0,
@@ -1167,6 +1167,17 @@ export default function Rails() {
                       {b.label}
                     </button>
                   ))}
+                  <div style={{ display: "flex", marginLeft: 8 }}>
+                    {[100, 120, 130, 150, 200].map(b => (
+                      <button
+                        key={`changeLengthPreset_${b}`}
+                        style={{ ...moveButtonStyle, width: "auto" }}
+                        onClick={() => setStationLength(b)}
+                      >
+                        {b}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1190,6 +1201,17 @@ export default function Rails() {
                       {b.label}
                     </button>
                   ))}
+                  <div style={{ display: "flex", marginLeft: 8 }}>
+                    {[16, 18, 20, 30].map(b => (
+                      <button
+                        key={`changeWidthPreset_${b}`}
+                        style={{ ...moveButtonStyle, width: "auto" }}
+                        onClick={() => setStationWidth(b)}
+                      >
+                        {b}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
               {previewFromPrev !== null && <div>前の駅から {Math.round(meter(previewFromPrev) * 10 / 1000) / 10 } km</div>}
@@ -1281,6 +1303,17 @@ export default function Rails() {
                     </button>
                   ))}
                 </div>
+                <div style={{ display: "flex" }}>
+                  {[100, 120, 130, 150, 200].map(b => (
+                    <button
+                      key={`changeLengthPreset_${b}`}
+                      style={{ ...moveButtonStyle, width: "auto" }}
+                      onClick={() => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { length: b })}
+                    >
+                      {b}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ width: 80 }}>幅(m)</div>
@@ -1301,6 +1334,17 @@ export default function Rails() {
                       onClick={() => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { width: Math.max(selectedStation.width + b.diff, 0) })}
                     >
                       {b.label}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: "flex" }}>
+                  {[16, 18, 20, 30].map(b => (
+                    <button
+                      key={`changeWidthPreset_${b}`}
+                      style={{ ...moveButtonStyle, width: "auto" }}
+                      onClick={() => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { width: b })}
+                    >
+                      {b}
                     </button>
                   ))}
                 </div>
@@ -1337,10 +1381,10 @@ export default function Rails() {
                   onChange={(e) => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { platform: Array.from(e.target.value).filter(c => c == "0" || c == "1").join("") })}
                 />
                 <div style={{ display: "flex" }}>
-                  {["1001", "010", "01010"].map(b => (
+                  {["1001", "010", "010010"].map(b => (
                     <button
                       key={`changePlatform_${b}`}
-                      style={{ ...moveButtonStyle, width: 56 }}
+                      style={{ ...moveButtonStyle, width: "auto" }}
                       onClick={() => updateStation(selectedStationIdx.routeIdx, selectedStationIdx.stationIdx, { platform: b })}
                     >
                       {b}
