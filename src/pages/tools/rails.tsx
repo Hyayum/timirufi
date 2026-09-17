@@ -356,7 +356,7 @@ export default function Rails() {
   const routeNameBoxRef = useRef<HTMLInputElement | null>(null);
   // station
   const [stationLength, setStationLength] = useState(130); // m
-  const [stationWidth, setStationWidth] = useState(16); // m
+  const [stationWidth, setStationWidth] = useState(18); // m
   const [selectedStationIdx, setSelectedStationIdx] = useState<({ routeIdx: number, stationIdx: number } | null)>(null);
   const selectedStation = selectedStationIdx !== null ? routes[selectedStationIdx.routeIdx]?.stations[selectedStationIdx.stationIdx] ?? null : null;
   // layer
@@ -922,9 +922,14 @@ export default function Rails() {
                   mode == "layer" ? "pointer" : "default",
               }}
             >
+              <defs>
+                <clipPath id="crop">
+                  <rect x={0} y={0} width={size.x} height={size.y} />
+                </clipPath>
+              </defs>
               <rect x={0} y={0} width={size.x} height={size.y} fill="#fff" />
               {bgImage && (
-                <image href={bgImage} x={0} y={0} />
+                <image href={bgImage} x={0} y={0} clipPath="url(#crop)" />
               )}
 
               {/* grid */}
@@ -951,7 +956,7 @@ export default function Rails() {
 
               {/* draw preview */}
               {mode == "draw" && mouseXY && selectedRoute.points.length == 0 && (
-                <circle cx={mouseXY.x} cy={mouseXY.y} r={8} fill={rgb(selectedRoute.color)} />
+                <circle cx={mouseXY.x} cy={mouseXY.y} r={8} fill={rgb(selectedRoute.color)} opacity={0.5} />
               )}
               {mode == "draw" && previewPath && (
                 <path
@@ -1631,7 +1636,7 @@ const SvgStationPath = React.memo(function SvgStationPath(props: StationPathProp
           x={centerPoints[7].x + (props.nameLabelPosition?.x || 0)}
           y={centerPoints[7].y + (props.nameLabelPosition?.y || 0)}
           fill={rgb({ h: 225, s: 80, v: 60 })}
-          style={{ fontSize: 20, pointerEvents: "none" }}
+          style={{ fontSize: 18, pointerEvents: "none" }}
         >
           {props.name}
         </text>
@@ -1641,7 +1646,7 @@ const SvgStationPath = React.memo(function SvgStationPath(props: StationPathProp
           x={centerPoints[7].x + (props.numberLabelPosition?.x || 0)}
           y={centerPoints[7].y + (props.numberLabelPosition?.y || 0)}
           fill={rgb({ h: 225, s: 80, v: 60 })}
-          style={{ fontSize: 12, pointerEvents: "none" }}
+          style={{ fontSize: 14, pointerEvents: "none" }}
         >
           {props.number}
         </text>
@@ -1694,7 +1699,7 @@ const SvgLayerChangePoint = React.memo(function SvgLayerChangePoint(props: Layer
   const ny = Math.sin(direction + Math.PI / 2) * (props.upper ? 1 : -1);
   const dx = Math.cos(direction) * (props.upper ? 1 : -1);
   const dy = Math.sin(direction) * (props.upper ? 1 : -1);
-  const size = props.width * 2;
+  const size = props.width * 3;
   const px1 = p.x + nx * size; const py1 = p.y + ny * size;
   const px2 = px1 + dx * size; const py2 = py1 + dy * size;
   const px3 = p.x - nx * size; const py3 = p.y - ny * size;
