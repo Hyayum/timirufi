@@ -637,6 +637,7 @@ export default function Rails() {
     const stations = route.stations.map(s => ({ ...s, distance: totalLength - s.distance }));
     const layerChangePoints = route.layerChangePoints.map(s => ({ ...s, distance: totalLength - s.distance, upper: !s.upper }));
     const startLayer = getLayerAtLength(route.startLayer, route.layerChangePoints, totalLength);
+    console.log(pathData.pointsInfo, points, startDirection);
     updateRoute(routeIdx, { ...route, startDirection, points, stations, layerChangePoints, startLayer });
   };
 
@@ -1142,7 +1143,7 @@ export default function Rails() {
           ) :  mode == "draw" ? (
             <>
               {previewPath && previewPath.lastRadius !== null && selectedRoute.points[selectedRoute.points.length - 1].length !== null && <div>半径 {Math.abs(Math.round(previewPath.lastRadius))} m</div>}
-              <button style={{ width: 48 }} onClick={() => reverseRoute(selectedRouteIdx)}>反転</button>
+              <button style={{ width: 96 }} onClick={() => reverseRoute(selectedRouteIdx)}>反転(非推奨)</button>
             </>
           ) : mode == "station" ? (
             <>
@@ -1582,7 +1583,6 @@ const isSameObj = <T,>(prev: T, next: T) => {
 };
 
 const SvgRoutePath = React.memo(function SvgRoutePath(props: RoutePathProps) {
-  console.log("rendered")
   return (
     <path
       ref={elm => { if (props.setRef && props.refIdx !== undefined) { props.setRef(elm, props.refIdx); }}}
@@ -1680,7 +1680,7 @@ const SvgStationPath = React.memo(function SvgStationPath(props: StationPathProp
           x={centerPoints[7].x + (props.nameLabelPosition?.x || 0)}
           y={centerPoints[7].y + (props.nameLabelPosition?.y || 0)}
           fill={rgb({ h: 225, s: 80, v: 60 })}
-          style={{ fontSize: 18, pointerEvents: "none" }}
+          style={{ fontSize: 18, pointerEvents: "none", fontFamily: "Meiryo, MS PGothic, sans-serif" }}
         >
           {props.name}
         </text>
@@ -1690,7 +1690,7 @@ const SvgStationPath = React.memo(function SvgStationPath(props: StationPathProp
           x={centerPoints[7].x + (props.numberLabelPosition?.x || 0)}
           y={centerPoints[7].y + (props.numberLabelPosition?.y || 0)}
           fill={rgb({ h: 225, s: 80, v: 60 })}
-          style={{ fontSize: 14, pointerEvents: "none" }}
+          style={{ fontSize: 14, pointerEvents: "none", fontFamily: "Meiryo, MS PGothic, sans-serif" }}
         >
           {props.number}
         </text>
