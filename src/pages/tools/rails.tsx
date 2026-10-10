@@ -1690,7 +1690,7 @@ const SvgStationPath = React.memo(function SvgStationPath(props: StationPathProp
           x={centerPoints[7].x + (props.numberLabelPosition?.x || 0)}
           y={centerPoints[7].y + (props.numberLabelPosition?.y || 0)}
           fill={rgb({ h: 225, s: 80, v: 60 })}
-          style={{ fontSize: 14, pointerEvents: "none", fontFamily: "Meiryo, MS PGothic, sans-serif" }}
+          style={{ fontSize: 12, pointerEvents: "none", fontFamily: "Meiryo, MS PGothic, sans-serif" }}
         >
           {props.number}
         </text>
