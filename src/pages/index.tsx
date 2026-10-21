@@ -7,7 +7,7 @@ import {
 } from "@mui/material";
 import { ArrowForward, CheckCircle, List, MusicNote, SentimentSatisfiedAlt } from "@mui/icons-material";
 import OutboundLink from "@/component/OutboundLink";
-import { ICON_URL } from "@/config/config";
+import { BASE_PATH, ICON_URL } from "@/config/config";
 import { platforms } from "@/config/menu";
 import { useRouter } from "next/router";
 
@@ -61,9 +61,11 @@ export default function Home() {
               {line}
             </Typography>
           ))}
-          <Button variant="text" onClick={() => router.push("/guideline")}>
-            楽曲使用のガイドライン
-          </Button>
+          <a href={BASE_PATH + "/guideline"}>
+            <Button variant="text">
+              楽曲使用のガイドライン
+            </Button>
+          </a>
         </Grid>
 
         <Grid size="grow">
@@ -72,7 +74,7 @@ export default function Home() {
           </Typography>
           {topMenu.map((menu) => (
             <Box key={menu.label}>
-              <a href={menu.url}>
+              <a href={BASE_PATH + menu.url}>
                 <Button variant="text" startIcon={menu.icon}>
                   {menu.label}
                 </Button>
@@ -126,14 +128,15 @@ export default function Home() {
             </Grid>
           ))}
           <Grid size={12}>
-            <Button
-              variant="text"
-              size="large"
-              onClick={() => router.push("/list")}
-              startIcon={<ArrowForward />}
-            >
-              もっと見る (一覧へ)
-            </Button>
+            <a href={BASE_PATH + "/list"}>
+              <Button
+                variant="text"
+                size="large"
+                startIcon={<ArrowForward />}
+              >
+                もっと見る (一覧へ)
+              </Button>
+            </a>
           </Grid>
         </Grid>
       </Grid>

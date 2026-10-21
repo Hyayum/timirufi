@@ -481,9 +481,6 @@ export default function Peyudochi() {
       setSkipGuard(5);
     }
   };
-  
-  const shareText = `${share}${"\n"}#だれでもペユドチ${"\n"}https://hyayum.github.io/timirufi/peyudochi`;
-  const shareQuery = new URLSearchParams({ text: shareText });
 
   const rainbowColorString = (hover: boolean) => {
     const light = hover ? "ff" : "ee";

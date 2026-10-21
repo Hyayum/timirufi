@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 import { ChevronLeft, Menu } from "@mui/icons-material";
 import { MusicListProvider } from "@/hook/useMusicList";
+import { BASE_PATH } from "@/config/config";
 import { platforms } from "@/config/menu";
 import OutboundLink from "@/component/OutboundLink";
 
@@ -96,13 +97,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const [isPending, startTransition] = useTransition();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const handleClickLink = (path: string) => {
-    setDrawerOpen(false);
-    startTransition(() => {
-      router.push(path);
-    });
-  };
-
   return (
     <Box>
       <IconButton
@@ -120,28 +114,28 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         </Box>
         <List>
           {menuLinks.map((link) => (
-            <ListItemText
-              primary={link.name}
-              secondary={link.desc}
-              slotProps={{ secondary: { fontSize: 12, color: "#999" } }}
-              key={link.path}
-              onClick={() => handleClickLink(link.path)}
-              sx={{
-                cursor: "pointer",
-                m: 0,
-                px: 2,
-                py: 1,
-                bgcolor: router.pathname == link.path ? "#f0f0f0" : "#fff",
-                "&:hover": { bgcolor: "#e0e0e0" },
-              }}
-            /> 
+            <a href={BASE_PATH + link.path} key={link.path} style={{ textDecoration: "none" }}>
+              <ListItemText
+                primary={link.name}
+                secondary={link.desc}
+                slotProps={{ primary: { color: "#223" }, secondary: { fontSize: 12, color: "#999" } }}
+                sx={{
+                  cursor: "pointer",
+                  m: 0,
+                  px: 2,
+                  py: 1,
+                  bgcolor: router.pathname == link.path ? "#f0f0f0" : "#fff",
+                  "&:hover": { bgcolor: "#e0e0e0" },
+                }}
+              />
+            </a>
           ))}
           {outboundLinks.map((link) => (
             <OutboundLink href={link.url} key={link.url}>
               <ListItemText
                 primary={link.name}
                 secondary={link.desc}
-                slotProps={{ secondary: { fontSize: 12, color: "#999" } }}
+                slotProps={{ primary: { color: "#223" }, secondary: { fontSize: 12, color: "#999" } }}
                 sx={{
                   cursor: "pointer",
                   m: 0,
@@ -187,7 +181,7 @@ export default function App({ Component, pageProps }: AppProps) {
       <MusicListProvider>
         <Head>
           <title>てぃみ*れの / みるふぃ</title>
-          <link rel="icon" href="/timirufi/favicon.ico" />
+          <link rel="icon" href={BASE_PATH + "/favicon.ico"} />
         </Head>
         <Layout>
           <Component {...pageProps} />
