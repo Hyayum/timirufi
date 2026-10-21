@@ -5,7 +5,7 @@ import {
   Grid2 as Grid,
   Typography
 } from "@mui/material";
-import { ArrowForward } from "@mui/icons-material";
+import { ArrowForward, CheckCircle, List, MusicNote, SentimentSatisfiedAlt } from "@mui/icons-material";
 import OutboundLink from "@/component/OutboundLink";
 import { ICON_URL } from "@/config/config";
 import { platforms } from "@/config/menu";
@@ -14,11 +14,12 @@ import { useRouter } from "next/router";
 export default function Home() {
   const router = useRouter();
 
-  const profile = `ボカロ曲、東方アレンジ、インストオリジナル曲を作ってます。
-  ペユドチな曲を作ってます。
-  動画・イラスト等もほとんど自分で作っています。
-  依頼は受け付けていません。
-  楽曲は基本的に自由に使っていいことになっていますが一応下のガイドラインを確認しておいてください。`;
+  const profile = `主なジャンル：ボカロ曲、東方アレンジ、インストオリジナル曲 など
+主な曲調：明るめ、かわいめ、4536多め、ペユドチ など
+　
+動画・イラスト等もほとんど自分で作っています。
+依頼は受け付けていません。
+楽曲の使用は基本的に自由です。一応下のガイドラインを確認しておいてください。`;
 
   const topSongUrls = [
     { url: "https://www.youtube.com/embed/1HKPSUHxAaU", desc: "明るいボカロ曲1" },
@@ -29,6 +30,13 @@ export default function Home() {
     { url: "https://www.youtube.com/embed/MmawkU8f710", desc: "たのしいインスト曲" },
     { url: "https://www.youtube.com/embed/5F51itLv2sU", desc: "BGMっぽい曲" },
     { url: "https://www.youtube.com/embed/9SFArfJn-7s", desc: "東方アレンジ" },
+  ];
+
+  const topMenu = [
+    { label: "楽曲使用のガイドライン", url: "/guideline", icon: <CheckCircle /> },
+    { label: "楽曲リスト", url: "/list", icon: <List /> },
+    { label: "てぃみらりー（BGM置き場）", url: "/timillery", icon: <MusicNote /> },
+    { label: "ペユドチ", url: "/tools/peyudochi", icon: <SentimentSatisfiedAlt /> },
   ];
 
   return (
@@ -46,7 +54,7 @@ export default function Home() {
           </Typography>
           <Avatar src={ICON_URL} />
           <Typography variant="body2" sx={{ mb: 1 }}>
-            ↑現在使用中のアイコン
+            ↑かわいいアイコン（『サイエイキラリティ』の動画の絵）
           </Typography>
           {profile.split("\n").map((line, i) => (
             <Typography variant="body2" key={i}>
@@ -59,6 +67,18 @@ export default function Home() {
         </Grid>
 
         <Grid size="grow">
+          <Typography variant="h5">
+            Menu
+          </Typography>
+          {topMenu.map((menu) => (
+            <Box key={menu.label}>
+              <a href={menu.url}>
+                <Button variant="text" startIcon={menu.icon}>
+                  {menu.label}
+                </Button>
+              </a>
+            </Box>
+          ))}
           <Typography variant="h5">
             Links
           </Typography>

@@ -503,6 +503,7 @@ export default function Peyudochi() {
   return (
     <Grid container spacing={5} sx={{ p: 5, pb: 20, minWidth: 800 }}>
       <Head>
+        <title>ペユドチ生成機</title>
         <meta property="og:image" content="https://hyayum.github.io/timirufi/peyu.png" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@Timirufi" />
