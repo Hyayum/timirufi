@@ -48,12 +48,12 @@ export default function LyricsPage() {
           <Typography sx={{ color: "#888" }}>Loading...</Typography>
         ) : (
           <>
-            {isValidNumber && <Button onClick={() => router.push(`/lyrics`)}>全ての曲を表示</Button>}
+            {isValidNumber && <Grid size={12}><Button onClick={() => router.push(`/lyrics`)}>全ての曲を表示</Button></Grid>}
             {showingMusicList.map((m) => {
               const youtubeId = m.youtubeUrl.split("/").pop();
               const thumbnailUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg` : "";
               return (
-                <Accordion key={m.number} sx={{ width: "100%" }} defaultExpanded={isValidNumber}>
+                <Accordion key={m.number} sx={{ width: 720 }} defaultExpanded={isValidNumber}>
                   <AccordionSummary expandIcon={<ExpandMore />}>
                     <Grid size={12} sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                       {thumbnailUrl ? (
@@ -67,7 +67,7 @@ export default function LyricsPage() {
                         <div style={{ width: 100 }}></div>
                       )}
                       <Box>
-                        <Typography variant="h5" sx={{ pl: 2 }}>
+                        <Typography variant="h5" sx={{ pt: 1, "&::before": { display: "none" } }}>
                           {m.title}
                         </Typography>
                         <Box sx={{ display: "flex", gap: 2 }}>
@@ -81,7 +81,7 @@ export default function LyricsPage() {
                       </Box>
                     </Grid>
                   </AccordionSummary>
-                  <AccordionDetails>
+                  <AccordionDetails sx={{ p: 3 }}>
                     <Lyrics lyrics={m.lyrics} />
                   </AccordionDetails>
                 </Accordion>
