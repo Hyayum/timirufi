@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
+import { useRouter } from "next/router";
 import { MusicDbData } from "@/music/model";
 import { API_URL } from "@/config/config";
 
@@ -19,6 +20,7 @@ const MusicListContext = createContext(defaultContext);
 export const MusicListProvider = ({ children }: { children: React.ReactNode }) => {
   const [musicList, setMusicList] = useState<MusicDbData[]>([]);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const fetchData = async () => {
     setLoading(true);
@@ -32,9 +34,13 @@ export const MusicListProvider = ({ children }: { children: React.ReactNode }) =
     setLoading(false);
   };
 
+  const usedPages = ["/list", "/timillery", "/lyrics"];
+
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (router.isReady && usedPages.includes(router.pathname)) {
+      fetchData();
+    }
+  }, [router.isReady && router.pathname]);
 
   return (
     <MusicListContext.Provider value={{ musicList, loading, reload: fetchData }}>

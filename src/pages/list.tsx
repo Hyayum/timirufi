@@ -16,10 +16,12 @@ import { MaterialReactTable, useMaterialReactTable, type MRT_ColumnDef } from "m
 import OutboundLink from "@/component/OutboundLink";
 import AudioPlayer from "@/component/AudioPlayer";
 import HoverPopper from "@/component/HoverPopper";
+import Lyrics from "@/component/Lyrics";
 import { Niconico } from "@/component/icons";
 import { MusicDbData } from "@/music/model";
 import { getSoundUrl } from "@/music/utils";
 import { useMusicList } from "@/hook/useMusicList";
+import { BASE_PATH } from "@/config/config";
 
 const getBgColor = (tag: string[]) => {
   if (tag.includes("東方")) {
@@ -47,10 +49,10 @@ export default function List() {
 
   useEffect(() => {
     const param = searchParams.get("lyrics");
-    if (param && !loading) {
-      setShowLyrics(Number(param));
+    if (param && !Number.isNaN(Number(param))) {
+      window.location.href = `${BASE_PATH}/lyrics?n=${param}`;
     }
-  }, [loading]);
+  }, [searchParams]);
 
   const handleChangeFlag = (n: number) => {
     const flag = !playFlags[n];
@@ -271,33 +273,30 @@ export default function List() {
         <MaterialReactTable table={table} />
         {loading && (<LinearProgress sx={{ width: "100%" }} />)}
       </Grid>
-      <Lyrics
+      <LyricsModal
         open={showLyrics > 0}
         onClose={() => setShowLyrics(-1)}
         lyrics={lyrics}
         title={lyricsTitle}
+        number={showLyrics}
       />
     </Grid>
   );
 }
 
-const Lyrics = ({
+const LyricsModal = ({
   open,
   onClose,
   lyrics,
   title,
+  number,
 }: {
   open: boolean,
   onClose: (b: boolean) => void,
   lyrics: string,
   title: string,
+  number: number,
 }) => {
-  const [show, setShow] = useState<{ [k: string]: boolean }>({
-    mk: true,
-    vc: true,
-    rb: true
-  });
-  const lyricsParts = lyrics.split(/(\/\-.+?\-\-[\s\S]+?\-\/)/);
   return (
     <Dialog open={open} onClose={onClose}>
       <Grid container spacing={2} sx={{ p: 3, whiteSpace: "pre-wrap" }}>
@@ -306,50 +305,10 @@ const Lyrics = ({
             {title}
           </Typography>
         </Grid>
-        <Grid size={12}>
-          {open && (
-            <>
-              <FormGroup>
-                <FormControlLabel
-                  control={<Checkbox checked={show.mk} onClick={() => setShow({ ...show, mk: !show.mk })} />}
-                  label="マーカー(【Aメロ】など)を表示"
-                />
-              </FormGroup>
-              <FormGroup>
-                <FormControlLabel
-                  control={<Checkbox checked={show.vc} onClick={() => setShow({ ...show, vc: !show.vc })} />}
-                  label="パート分け(●◆など)を表示"
-                />
-              </FormGroup>
-              <FormGroup>
-                <FormControlLabel
-                  control={<Checkbox checked={show.rb} onClick={() => setShow({ ...show, rb: !show.rb })} />}
-                  label="ルビを表示"
-                />
-              </FormGroup>
-            </>
-          )}
-        </Grid>
-        <Grid size={12}>
-          {lyricsParts.map((part, i) => {
-            const match = part.match(/\/\-(.*?)\-\-([\s\S]*?)\-\//);
-            let flag = true;
-            let style = {};
-            let text = match?.[2] || part;
-            if (match && match[1] == "mk") {
-              flag = show.mk;
-              text = "\n" + text;
-            } else if (match && match[1] == "rb") {
-              flag = show.rb;
-              style = { fontSize: 11 };
-            } else if (match && match[1] == "wh") {
-              style = { color: "#fffff0" }
-            } else if (match) {
-              flag = show[match[1]];
-            }
-            return flag && (<span style={style} key={i}>{text}</span>);
-          })}
-        </Grid>
+        <a href={`${BASE_PATH}/lyrics?n=${number}`}>
+          <Button size="small" variant="text">⇒ページとして表示</Button>
+        </a>
+        <Lyrics lyrics={lyrics} />
       </Grid>
     </Dialog>
   );
