@@ -53,38 +53,40 @@ export default function LyricsPage() {
               const youtubeId = m.youtubeUrl.split("/").pop();
               const thumbnailUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg` : "";
               return (
-                <Accordion key={m.number} sx={{ width: 720 }} defaultExpanded={isValidNumber}>
-                  <AccordionSummary expandIcon={<ExpandMore />}>
-                    <Grid size={12} sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                      {thumbnailUrl ? (
-                        <img
-                          src={thumbnailUrl}
-                          alt={m.title}
-                          loading="lazy"
-                          width={100}
-                        />
-                      ) : (
-                        <div style={{ width: 100 }}></div>
-                      )}
-                      <Box>
-                        <Typography variant="h5" sx={{ pt: 1, "&::before": { display: "none" } }}>
-                          {m.title}
-                        </Typography>
-                        <Box sx={{ display: "flex", gap: 2 }}>
-                          {m.niconicoUrl && (
-                            <ExtLink url={m.niconicoUrl} text="ニコニコ" />
-                          )}
-                          {m.youtubeUrl && (
-                            <ExtLink url={m.youtubeUrl} text="YouTube" />
-                          )}
+                <Grid size={12} key={m.number}>
+                  <Accordion sx={{ width: 720 }} defaultExpanded={isValidNumber}>
+                    <AccordionSummary expandIcon={<ExpandMore />}>
+                      <Grid size={12} sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                        {thumbnailUrl ? (
+                          <img
+                            src={thumbnailUrl}
+                            alt={m.title}
+                            loading="lazy"
+                            width={100}
+                          />
+                        ) : (
+                          <div style={{ width: 100 }}></div>
+                        )}
+                        <Box>
+                          <Typography variant="h5" sx={{ pt: 1, "&::before": { display: "none" } }}>
+                            {m.title}
+                          </Typography>
+                          <Box sx={{ display: "flex", gap: 2 }}>
+                            {m.niconicoUrl && (
+                              <ExtLink url={m.niconicoUrl} text="ニコニコ" />
+                            )}
+                            {m.youtubeUrl && (
+                              <ExtLink url={m.youtubeUrl} text="YouTube" />
+                            )}
+                          </Box>
                         </Box>
-                      </Box>
-                    </Grid>
-                  </AccordionSummary>
-                  <AccordionDetails sx={{ p: 3 }}>
-                    <Lyrics lyrics={m.lyrics} />
-                  </AccordionDetails>
-                </Accordion>
+                      </Grid>
+                    </AccordionSummary>
+                    <AccordionDetails sx={{ p: 3 }}>
+                      <Lyrics lyrics={m.lyrics} />
+                    </AccordionDetails>
+                  </Accordion>
+                </Grid>
               );
             })}
           </>
